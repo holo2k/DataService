@@ -1,0 +1,35 @@
+﻿<Window x:Class="DataServiceApp.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:DataServiceApp"
+        mc:Ignorable="d"
+        Title="Главное окно" Height="450" Width="390.909" ResizeMode="CanMinimize" WindowStartupLocation="CenterScreen">
+    <Grid>
+        <TabControl>
+            <TabItem x:Name="stateRecyclerTab">
+                <TabItem.Header>
+                    <TextBlock Text="Управление"></TextBlock>
+                </TabItem.Header>
+                <TabItem.Content>
+                    <Grid>
+                        <StackPanel>
+                            <Button x:Name="btnInstall" Content="Установить"  Click="btnInstall_Click" ></Button>
+                            <Button x:Name="btnStart" Content="Запустить"  Click="btnStart_Click"/>
+                            <Button x:Name="btnReStart" Content="Перезапустить"  Click="btnReStart_Click"/>
+                            <Button x:Name="btnPause" Content="Приостановить"  Click="btnPause_Click"/>
+                            <Button x:Name="btnDelete" Content="Удалить"  Click="btnDelete_Click"/>
+                        </StackPanel>
+                    </Grid>
+                </TabItem.Content>
+            </TabItem>
+            <TabItem x:Name="stateSettingsTab">
+                <TabItem.Header>
+                    <TextBlock Text="Настройки"></TextBlock>
+                </TabItem.Header>
+            </TabItem>
+        </TabControl>
+        
+    </Grid>
+</Window>
