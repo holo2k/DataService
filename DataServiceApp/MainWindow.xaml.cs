@@ -29,6 +29,37 @@ namespace DataServiceApp
         {
             InitializeComponent();
             openFile.FileName = "../../../DataService/bin/Debug/DataService.exe";
+            var serviceExists = ServiceController.GetServices().Any(s => s.DisplayName == "Служба интеграции");
+            ServiceController service = ServiceController.GetServices().FirstOrDefault(s => s.DisplayName == "Служба интеграции");
+            if (!serviceExists)
+            {
+                btnDelete.IsEnabled = false;
+                btnInstall.IsEnabled = true;
+                btnPause.IsEnabled = false;
+                btnReStart.IsEnabled = false;
+                btnStart.IsEnabled = false;
+                txtCurrentState.Text = "Текущее состояние службы:\n Служба не установлена";
+                txtCurrentState.Foreground = Brushes.Red;
+            }
+            else
+            {
+                if(service.Status == ServiceControllerStatus.Running)
+                {
+                    txtCurrentState.Text = "Текущее состояние службы:\n Служба запущена";
+                    txtCurrentState.Foreground = Brushes.Green;
+                    btnStart.IsEnabled = false;
+                }
+                    
+                if (service.Status == ServiceControllerStatus.Stopped)
+                {
+                    txtCurrentState.Text = "Текущее состояние службы:\n Служба приостановлена";
+                    txtCurrentState.Foreground = Brushes.Yellow;
+                    btnPause.IsEnabled = false;
+                }
+
+                btnDelete.IsEnabled = true;
+                btnInstall.IsEnabled = false;
+            }
         }
 
         private void btnInstall_Click(object sender, RoutedEventArgs e)
@@ -44,35 +75,66 @@ namespace DataServiceApp
                 return;
             }
             MessageBox.Show("Установка сервиса выполнена!");
+            txtCurrentState.Text = "Текущее состояние службы:\n Служба приостановлена";
+            txtCurrentState.Foreground = Brushes.Yellow;
+            btnDelete.IsEnabled = true;
+            btnInstall.IsEnabled = false;
+            btnPause.IsEnabled = false;
+            btnReStart.IsEnabled = true;
+            btnStart.IsEnabled = true;
         }
 
         private void btnDelete_Click(object sender, RoutedEventArgs e)
         {
-            try
+            if(MessageBox.Show("Вы точно хотите удалить службу?", "Предупреждение", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
             {
-                ManagedInstallerClass.InstallHelper(new[] {@"/u", openFile.FileName });
+                try
+                {
+                    ManagedInstallerClass.InstallHelper(new[] { @"/u", openFile.FileName });
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.Message.ToString());
+                    return;
+                }
+                MessageBox.Show("Сервис удален успешно!");
+                txtCurrentState.Text = "Текущее состояние службы:\n Служба не установлена";
+                txtCurrentState.Foreground = Brushes.Red;
+                btnInstall.IsEnabled = true;
+                btnDelete.IsEnabled = false;
+                btnPause.IsEnabled = false;
+                btnReStart.IsEnabled = false;
+                btnStart.IsEnabled = false;
             }
-            catch (Exception ex)
+            else
             {
-                MessageBox.Show(ex.Message.ToString());
                 return;
             }
-            MessageBox.Show("Сервис удален успешно!");
         }
 
         private void btnStart_Click(object sender, RoutedEventArgs e)
         {
             StartService("Служба интеграции");
+            txtCurrentState.Text = "Текущее состояние службы:\n Служба запущена";
+            txtCurrentState.Foreground = Brushes.Green;
+            btnStart.IsEnabled = false;
+            btnPause.IsEnabled = true;
         }
 
         private void btnPause_Click(object sender, RoutedEventArgs e)
         {
             StopService("Служба интеграции");
+            txtCurrentState.Text = "Текущее состояние службы:\n Служба приостановлена";
+            txtCurrentState.Foreground = Brushes.Yellow;
+            btnStart.IsEnabled = true;
+            btnPause.IsEnabled = false;
         }
 
         private void btnReStart_Click(object sender, RoutedEventArgs e)
         {
             RestartService("Служба интеграции");
+            btnStart.IsEnabled = false;
+            btnPause.IsEnabled = true;
         }
 
         public static void StartService(string serviceName)
@@ -83,6 +145,7 @@ namespace DataServiceApp
             {
                 // Запускаем службу
                 service.Start();
+               
                 // В течении минуты ждём статус от службы
                 service.WaitForStatus(ServiceControllerStatus.Running, TimeSpan.FromMinutes(1));
                 MessageBox.Show("Служба была успешно запущена!");
@@ -112,23 +175,28 @@ namespace DataServiceApp
         }
 
         // Перезапуск службы
-        public static void RestartService(string serviceName)
+        public void RestartService(string serviceName)
         {
+
             ServiceController service = new ServiceController(serviceName);
             TimeSpan timeout = TimeSpan.FromMinutes(1);
             if (service.Status != ServiceControllerStatus.Stopped)
             {
-                Console.WriteLine("Перезапуск службы. Останавливаем службу...");
+                txtCurrentState.Text = "Текущее состояние службы:\n Перезапуск службы. Останавливаем службу...";
+                txtCurrentState.Foreground = Brushes.Orange;
                 // Останавливаем службу
                 service.Stop();
                 service.WaitForStatus(ServiceControllerStatus.Stopped, timeout);
             }
             if (service.Status != ServiceControllerStatus.Running)
             {
-                Console.WriteLine("Перезапуск службы. Запускаем службу...");
+                txtCurrentState.Text = "Текущее состояние службы:\n Перезапуск службы. Запускаем службу...";
+                txtCurrentState.Foreground = Brushes.Yellow;
                 // Запускаем службу
                 service.Start();
                 service.WaitForStatus(ServiceControllerStatus.Running, timeout);
+                txtCurrentState.Text = "Текущее состояние службы:\n Служба запущена";
+                txtCurrentState.Foreground = Brushes.Green;
                 MessageBox.Show("Служба была успешно перезапущена!");
             }
         }

@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:DataServiceApp"
         mc:Ignorable="d"
-        Title="Главное окно" Height="450" Width="390.909" ResizeMode="CanMinimize" WindowStartupLocation="CenterScreen">
+        Title="Главное окно" Height="450" Width="390.909" ResizeMode="CanMinimize" WindowStartupLocation="CenterScreen" >
     <Grid>
         <TabControl>
             <TabItem x:Name="stateRecyclerTab">
@@ -13,13 +13,14 @@
                     <TextBlock Text="Управление"></TextBlock>
                 </TabItem.Header>
                 <TabItem.Content>
-                    <Grid>
+                    <Grid Background="LightSkyBlue">
                         <StackPanel>
                             <Button x:Name="btnInstall" Content="Установить"  Click="btnInstall_Click" ></Button>
                             <Button x:Name="btnStart" Content="Запустить"  Click="btnStart_Click"/>
                             <Button x:Name="btnReStart" Content="Перезапустить"  Click="btnReStart_Click"/>
                             <Button x:Name="btnPause" Content="Приостановить"  Click="btnPause_Click"/>
                             <Button x:Name="btnDelete" Content="Удалить"  Click="btnDelete_Click"/>
+                            <TextBlock x:Name="txtCurrentState" Text="Текущее состояние службы: " HorizontalAlignment="Center" Margin="0,70,0,0" FontSize="14" TextAlignment="Center"></TextBlock>
                         </StackPanel>
                     </Grid>
                 </TabItem.Content>
