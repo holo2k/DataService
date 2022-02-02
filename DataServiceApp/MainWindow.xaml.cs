@@ -2,6 +2,10 @@
 using System;
 using System.Collections.Generic;
 using System.Configuration.Install;
+using System.Data;
+using System.Data.Odbc;
+using System.Data.OleDb;
+using System.IO;
 using System.Linq;
 using System.ServiceProcess;
 using System.Text;
@@ -24,10 +28,22 @@ namespace DataServiceApp
     public partial class MainWindow : Window
     {
         OpenFileDialog openFile = new OpenFileDialog();
-        
+        OleDbConnection connection = new OleDbConnection();
+        OleDbDataAdapter dataAdapter = new OleDbDataAdapter();
+        public static DataSet dataSet = new DataSet();
+
+        string path = "";
+
         public MainWindow()
         {
             InitializeComponent();
+
+            //Открытие последнего путя до папки с таблицами
+            StreamReader sr = new StreamReader("DatabasePath");
+            path = sr.ReadLine();
+
+            tbPath.Text = path;
+
             openFile.FileName = "../../../DataService/bin/Debug/DataService.exe";
             var serviceExists = ServiceController.GetServices().Any(s => s.DisplayName == "Служба интеграции");
             ServiceController service = ServiceController.GetServices().FirstOrDefault(s => s.DisplayName == "Служба интеграции");
@@ -60,6 +76,103 @@ namespace DataServiceApp
                 btnDelete.IsEnabled = true;
                 btnInstall.IsEnabled = false;
             }
+            dataUpdate();
+            
+            
+        }
+        
+        //Обновление данных
+        public void dataUpdate()
+        {
+            connection = new OleDbConnection();
+            connection = OpenConnection(path);
+            try
+            {
+                dataSet.Reset();
+
+                var command = new OleDbCommand("SELECT UnitName,Index FROM DBMAIN", connection);
+
+                dataAdapter.SelectCommand = command;
+                dataSet.Load(command.ExecuteReader(), LoadOption.Upsert, connection.DataSource);
+                dataAdapter.Fill(dataSet);
+
+                //Декодирование
+                for (int i = 0; i < dataSet.Tables[0].Rows.Count; i++)
+                {
+                    String stringField = dataSet.Tables[0].Rows[i].ItemArray[0].ToString();
+                    Encoding enc = Encoding.GetEncoding(1252);
+                    Encoding enc2 = Encoding.GetEncoding(1251);
+                    string result = enc2.GetString(enc.GetBytes(stringField));
+                    dataSet.Tables[0].Rows[i].BeginEdit();
+                    dataSet.Tables[0].Rows[i][0] = result;
+                    dataSet.Tables[0].Rows[i].EndEdit();
+                    dataSet.Tables[0].Rows[i].AcceptChanges();
+                    dataSet.AcceptChanges();
+                }
+
+                dgUnits.ItemsSource = dataSet.Tables[0].DefaultView;
+                DataService.DataService.dataSet = dataSet;
+                dataSet.Dispose();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message.ToString());
+            }
+        }
+
+        //Подсоединение к базе
+        private OleDbConnection OpenConnection(string _path)
+        {
+            var builder = new OleDbConnectionStringBuilder();
+
+            builder.Add("Provider", "Microsoft.Jet.OLEDB.4.0");
+            builder.Add("Data Source", path);
+            builder.Add("Persist Security Info", "False");
+            builder.Add("Extended properties", "Paradox 7.x; HDR=YES");
+
+            connection.ConnectionString = builder.ToString();
+            
+            try
+            {
+                connection.Open();
+                return connection;
+            }
+            catch (Exception e)
+            {
+                MessageBox.Show(e.Message);
+                return null;
+            }
+        }
+
+        //Выбор папки с таблицами
+        private void btnSelect_Click(object sender, RoutedEventArgs e)
+        {
+            System.Windows.Forms.FolderBrowserDialog folderDialog = new System.Windows.Forms.FolderBrowserDialog();
+
+            if (folderDialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                tbPath.Text = folderDialog.SelectedPath;
+            }
+        }
+
+        //Запись путя до папки в файл
+        private void btnApply_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                path = tbPath.Text;
+                if(connection != null)
+                {
+                    connection.Close();
+                }
+                File.WriteAllText("DatabasePath", path);
+                dataUpdate();
+            }
+            catch(Exception ex)
+            {
+                MessageBox.Show("Возникла ошибка, возможно, данного пути не существует. \nПодробно:\n"+ex.Message.ToString());
+            } 
+
         }
 
         private void btnInstall_Click(object sender, RoutedEventArgs e)

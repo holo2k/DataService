@@ -8,11 +8,15 @@ using System.ServiceProcess;
 using System.Text;
 using System.Threading.Tasks;
 using System.Runtime.InteropServices;
+using System.Data.Odbc;
+using System.IO;
 
 namespace DataService
 {
     public partial class DataService : ServiceBase
     {
+        public static DataSet dataSet = new DataSet();
+
         public DataService()
         {
             InitializeComponent();
@@ -44,17 +48,26 @@ namespace DataService
         [DllImport("advapi32.dll", SetLastError = true)]
         private static extern bool SetServiceStatus(System.IntPtr handle, ref ServiceStatus serviceStatus);
 
-        protected override void OnStart(string[] args)
+        protected override async void OnStart(string[] args)
         {
             // Update the service state to Start Pending.
             ServiceStatus serviceStatus = new ServiceStatus();
             serviceStatus.dwCurrentState = ServiceState.SERVICE_START_PENDING;
             serviceStatus.dwWaitHint = 100000;
             SetServiceStatus(this.ServiceHandle, ref serviceStatus);
-
             // Update the service state to Running.
             serviceStatus.dwCurrentState = ServiceState.SERVICE_RUNNING;
             SetServiceStatus(this.ServiceHandle, ref serviceStatus);
+
+            //while (true)
+            //{
+            //    for (int i = 0; i < dataSet.Tables[0].Rows.Count; i++)
+            //    {
+            //        File.AppendAllText(@"C:\Users\nneke\source\repos\DataService\DataService\bin\Debug\Test.txt", dataSet.Tables[0].Rows[i].ItemArray[0].ToString());
+            //    
+            //    }
+            //    await Task.Delay(10000);
+            //}
         }
 
         protected override void OnStop()
