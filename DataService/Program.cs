@@ -1,4 +1,9 @@
-﻿using System.ServiceProcess;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.ServiceProcess;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace DataService
 {
@@ -7,7 +12,7 @@ namespace DataService
         /// <summary>
         /// Главная точка входа для приложения.
         /// </summary>
-        public static void Main()
+        static void Main()
         {
             ServiceBase[] ServicesToRun;
             ServicesToRun = new ServiceBase[]

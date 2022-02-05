@@ -1,9 +1,15 @@
-﻿using ClassLibrary;
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
 using System.Data;
-using System.IO;
-using System.Runtime.InteropServices;
+using System.Diagnostics;
+using System.Linq;
 using System.ServiceProcess;
+using System.Text;
 using System.Threading.Tasks;
+using System.Runtime.InteropServices;
+using System.Data.Odbc;
+using System.IO;
 
 namespace DataService
 {
@@ -14,7 +20,6 @@ namespace DataService
         public DataService()
         {
             InitializeComponent();
-            dataSet = Manager.dataSet;
         }
 
         public enum ServiceState
@@ -53,12 +58,12 @@ namespace DataService
             // Update the service state to Running.
             serviceStatus.dwCurrentState = ServiceState.SERVICE_RUNNING;
             SetServiceStatus(this.ServiceHandle, ref serviceStatus);
-            //dataSet = Manager.dataSet;
+
             //while (true)
             //{
             //    for (int i = 0; i < dataSet.Tables[0].Rows.Count; i++)
             //    {
-            //        File.AppendAllText(@"Test.txt", dataSet.Tables[0].Rows[i].ItemArray[0].ToString());
+            //        File.AppendAllText(@"C:\Users\nneke\source\repos\DataService\DataService\bin\Debug\Test.txt", dataSet.Tables[0].Rows[i].ItemArray[0].ToString());
             //    
             //    }
             //    await Task.Delay(10000);

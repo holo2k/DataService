@@ -1,16 +1,24 @@
-﻿using ClassLibrary;
-using Microsoft.Win32;
+﻿using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Configuration.Install;
 using System.Data;
+using System.Data.Odbc;
 using System.Data.OleDb;
 using System.IO;
 using System.Linq;
 using System.ServiceProcess;
 using System.Text;
+using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Documents;
+using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Navigation;
+using System.Windows.Shapes;
 
 namespace DataServiceApp
 {
@@ -21,12 +29,8 @@ namespace DataServiceApp
     {
         OpenFileDialog openFile = new OpenFileDialog();
         OleDbConnection connection = new OleDbConnection();
-        OleDbConnection dataConnection = new OleDbConnection();
         OleDbDataAdapter dataAdapter = new OleDbDataAdapter();
-        OleDbCommand command = new OleDbCommand();
         public static DataSet dataSet = new DataSet();
-        public static List<int> indexes = new List<int>();
-        public static Dictionary<DataSet,int> dataSets = new Dictionary<DataSet, int>();
 
         string path = "";
 
@@ -37,8 +41,6 @@ namespace DataServiceApp
             //Открытие последнего путя до папки с таблицами
             StreamReader sr = new StreamReader("DatabasePath");
             path = sr.ReadLine();
-            sr.Close();
-            sr.Dispose();
 
             tbPath.Text = path;
 
@@ -57,13 +59,13 @@ namespace DataServiceApp
             }
             else
             {
-                if (service.Status == ServiceControllerStatus.Running)
+                if(service.Status == ServiceControllerStatus.Running)
                 {
                     txtCurrentState.Text = "Текущее состояние службы:\n Служба запущена";
                     txtCurrentState.Foreground = Brushes.Green;
                     btnStart.IsEnabled = false;
                 }
-
+                    
                 if (service.Status == ServiceControllerStatus.Stopped)
                 {
                     txtCurrentState.Text = "Текущее состояние службы:\n Служба приостановлена";
@@ -74,94 +76,43 @@ namespace DataServiceApp
                 btnDelete.IsEnabled = true;
                 btnInstall.IsEnabled = false;
             }
-            service.Dispose();
+            dataUpdate();
+            
+            
         }
-
-        //Выбор папки с температурами по индексу оборудования
-        public string selectFolder(int index)
-        {
-            string hex = index.ToString("X8");
-            string pathToFolder = $"{path}\\D0000\\DT{hex}";
-
-            return pathToFolder;
-        }
-
+        
         //Обновление данных
         public void dataUpdate()
         {
             connection = new OleDbConnection();
-            connection = OpenConnection(connection, path);
+            connection = OpenConnection(path);
             try
             {
-                //Получение таблицы с именами и индексами оборудования
                 dataSet.Reset();
-                var commandSelectUnits = new OleDbCommand("SELECT UnitName,Index FROM DBMAIN", connection);
-                dataAdapter.SelectCommand = commandSelectUnits;
-                using (OleDbDataReader dataReader = commandSelectUnits.ExecuteReader())
-                {
-                    dataSet.Load(dataReader, LoadOption.Upsert, connection.DataSource);
-                }
+
+                var command = new OleDbCommand("SELECT UnitName,Index FROM DBMAIN", connection);
+
+                dataAdapter.SelectCommand = command;
+                dataSet.Load(command.ExecuteReader(), LoadOption.Upsert, connection.DataSource);
                 dataAdapter.Fill(dataSet);
+
                 //Декодирование
-                for (int j = 0; j < dataSet.Tables[0].Rows.Count; j++)
+                for (int i = 0; i < dataSet.Tables[0].Rows.Count; i++)
                 {
-                    String stringField = dataSet.Tables[0].Rows[j].ItemArray[0].ToString();
+                    String stringField = dataSet.Tables[0].Rows[i].ItemArray[0].ToString();
                     Encoding enc = Encoding.GetEncoding(1252);
                     Encoding enc2 = Encoding.GetEncoding(1251);
                     string result = enc2.GetString(enc.GetBytes(stringField));
-                    dataSet.Tables[0].Rows[j].BeginEdit();
-                    dataSet.Tables[0].Rows[j][0] = result;
-                    dataSet.Tables[0].Rows[j].EndEdit();
-                    dataSet.Tables[0].Rows[j].AcceptChanges();
+                    dataSet.Tables[0].Rows[i].BeginEdit();
+                    dataSet.Tables[0].Rows[i][0] = result;
+                    dataSet.Tables[0].Rows[i].EndEdit();
+                    dataSet.Tables[0].Rows[i].AcceptChanges();
                     dataSet.AcceptChanges();
                 }
-                connection.Close();
-                string pathFolder = "";
-                //Отбор всех индексов
-                for (var i = 0; i < dataSet.Tables[0].Rows.Count; i++)
-                {
-                    indexes.Add(Convert.ToInt32(dataSet.Tables[0].Rows[i][1]));
-                }
-                //Создание таблиц с температурой для каждой ед. оборудования
-                for (int i = 0; i < indexes.Count; i++)
-                {
-                    //Путь до папки с таблицами температур
-                    pathFolder = selectFolder(indexes[i]);
-                    if (Directory.Exists(pathFolder))
-                    {
-                        dataConnection = new OleDbConnection();
-                        dataConnection = OpenConnection(dataConnection, pathFolder);
 
-                        //Выбор последней созданной таблицы с температурой
-                        string hex = indexes[i].ToString("X4");
-                        string[] allfiles = Directory.GetFiles(pathFolder, $"ANLGI{hex}_0_???.DB");
-                        string currentTable = allfiles.Last();
-                        string currentTableNumber = currentTable.Substring(currentTable.Length - 6);
-                        currentTableNumber = currentTableNumber.Substring(0, 3);
-                        string tableName = $"ANLGI{hex}_0_{currentTableNumber}";
-
-                        var commandSelectTemperatures = new OleDbCommand
-                            ($"SELECT TOP 10 InstValue, DateTime FROM {tableName} ORDER BY 'DateTime' DESC", dataConnection);
-                        commandSelectTemperatures.Prepare();
-                        OleDbDataAdapter dataTemperatureAdapter = new OleDbDataAdapter();
-                        DataSet dataTemperatureSet = new DataSet();
-                        dataTemperatureAdapter.SelectCommand = commandSelectTemperatures;
-
-                        //ЗДЕСЬ БЕСКОНЕЧНАЯ ЗАГРУЗКА
-                        using (OleDbDataReader reader = commandSelectTemperatures.ExecuteReader())
-                        {
-                            dataTemperatureSet.Load(reader, LoadOption.Upsert, dataConnection.DataSource);
-                        }
-                        dataTemperatureAdapter.Fill(dataTemperatureSet);
-                        dataSets.Add(dataTemperatureSet, indexes[i]);
-                        dgTemperatures.ItemsSource = dataTemperatureSet.Tables[0].DefaultView;
-                        dataConnection.Close();
-                    }
-                }
                 dgUnits.ItemsSource = dataSet.Tables[0].DefaultView;
-                Manager.dataSet = dataSet;
+                DataService.DataService.dataSet = dataSet;
                 dataSet.Dispose();
-
             }
             catch (Exception ex)
             {
@@ -170,18 +121,17 @@ namespace DataServiceApp
         }
 
         //Подсоединение к базе
-        private OleDbConnection OpenConnection(OleDbConnection connection, string _path)
+        private OleDbConnection OpenConnection(string _path)
         {
             var builder = new OleDbConnectionStringBuilder();
 
             builder.Add("Provider", "Microsoft.Jet.OLEDB.4.0");
-            builder.Add("Data Source", _path);
-            builder.Add("Persist Security Info", "True");
+            builder.Add("Data Source", path);
+            builder.Add("Persist Security Info", "False");
             builder.Add("Extended properties", "Paradox 7.x; HDR=YES");
-            builder.Add("Jet OLEDB:Database Password", "jIGGAe");
 
             connection.ConnectionString = builder.ToString();
-
+            
             try
             {
                 connection.Open();
@@ -211,17 +161,17 @@ namespace DataServiceApp
             try
             {
                 path = tbPath.Text;
-                if (connection != null)
+                if(connection != null)
                 {
                     connection.Close();
                 }
                 File.WriteAllText("DatabasePath", path);
                 dataUpdate();
             }
-            catch (Exception ex)
+            catch(Exception ex)
             {
-                MessageBox.Show("Возникла ошибка, возможно, данного пути не существует. \nПодробно:\n" + ex.Message.ToString());
-            }
+                MessageBox.Show("Возникла ошибка, возможно, данного пути не существует. \nПодробно:\n"+ex.Message.ToString());
+            } 
 
         }
 
@@ -232,7 +182,7 @@ namespace DataServiceApp
             {
                 ManagedInstallerClass.InstallHelper(new[] { openFile.FileName });
             }
-            catch (Exception ex)
+            catch(Exception ex)
             {
                 MessageBox.Show(ex.Message.ToString());
                 return;
@@ -249,7 +199,7 @@ namespace DataServiceApp
 
         private void btnDelete_Click(object sender, RoutedEventArgs e)
         {
-            if (MessageBox.Show("Вы точно хотите удалить службу?", "Предупреждение", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+            if(MessageBox.Show("Вы точно хотите удалить службу?", "Предупреждение", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
             {
                 try
                 {
@@ -308,7 +258,7 @@ namespace DataServiceApp
             {
                 // Запускаем службу
                 service.Start();
-
+               
                 // В течении минуты ждём статус от службы
                 service.WaitForStatus(ServiceControllerStatus.Running, TimeSpan.FromMinutes(1));
                 MessageBox.Show("Служба была успешно запущена!");
@@ -364,11 +314,8 @@ namespace DataServiceApp
             }
         }
 
-        private void Window_Loaded(object sender, RoutedEventArgs e)
-        {
-            dataUpdate();
-        }
+        
     }
 }
-
+  
 
