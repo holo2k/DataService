@@ -11,6 +11,9 @@ using System.ServiceProcess;
 using System.Text;
 using System.Windows;
 using System.Windows.Media;
+using System.Data.Linq;
+using System.Threading;
+using System.IO.MemoryMappedFiles;
 
 namespace DataServiceApp
 {
@@ -19,16 +22,20 @@ namespace DataServiceApp
     /// </summary>
     public partial class MainWindow : Window
     {
-        OpenFileDialog openFile = new OpenFileDialog();
-        OleDbConnection connection = new OleDbConnection();
-        OleDbConnection dataConnection = new OleDbConnection();
-        OleDbDataAdapter dataAdapter = new OleDbDataAdapter();
-        OleDbCommand command = new OleDbCommand();
-        public static DataSet dataSet = new DataSet();
-        public static List<int> indexes = new List<int>();
-        public static Dictionary<DataSet,int> dataSets = new Dictionary<DataSet, int>();
+        private OpenFileDialog openFile = new OpenFileDialog();
+        private OleDbConnection connection = new OleDbConnection();
+        private OleDbConnection dataConnection = new OleDbConnection();
+        private OleDbDataAdapter dataAdapter = new OleDbDataAdapter();
+        private OleDbDataAdapter dataTemperatureAdapter = new OleDbDataAdapter();
+        private DataSet dataTemperatureSet = new DataSet();
+        private OleDbCommand command = new OleDbCommand();
+        private DataContext db = null;
+        private static DataSet dataSet = new DataSet();
+        private static List<int> indexes = new List<int>();
+        public static Dictionary<int, DataTable> dataSets = new Dictionary<int, DataTable>();
+        private int currentIndex = 0;
 
-        string path = "";
+        static string[] path = new string[1];
 
         public MainWindow()
         {
@@ -36,11 +43,11 @@ namespace DataServiceApp
 
             //Открытие последнего путя до папки с таблицами
             StreamReader sr = new StreamReader("DatabasePath");
-            path = sr.ReadLine();
+            path[0] = sr.ReadLine();
             sr.Close();
             sr.Dispose();
 
-            tbPath.Text = path;
+            tbPath.Text = path[0];
 
             openFile.FileName = "../../../DataService/bin/Debug/DataService.exe";
             var serviceExists = ServiceController.GetServices().Any(s => s.DisplayName == "Служба интеграции");
@@ -81,7 +88,7 @@ namespace DataServiceApp
         public string selectFolder(int index)
         {
             string hex = index.ToString("X8");
-            string pathToFolder = $"{path}\\D0000\\DT{hex}";
+            string pathToFolder = $"{path[0]}\\D0000\\DT{hex}";
 
             return pathToFolder;
         }
@@ -90,7 +97,7 @@ namespace DataServiceApp
         public void dataUpdate()
         {
             connection = new OleDbConnection();
-            connection = OpenConnection(connection, path);
+            connection = OpenConnection(connection, path[0]);
             try
             {
                 //Получение таблицы с именами и индексами оборудования
@@ -100,6 +107,7 @@ namespace DataServiceApp
                 using (OleDbDataReader dataReader = commandSelectUnits.ExecuteReader())
                 {
                     dataSet.Load(dataReader, LoadOption.Upsert, connection.DataSource);
+                    dataReader.Close();
                 }
                 dataAdapter.Fill(dataSet);
                 //Декодирование
@@ -115,6 +123,7 @@ namespace DataServiceApp
                     dataSet.Tables[0].Rows[j].AcceptChanges();
                     dataSet.AcceptChanges();
                 }
+                dataAdapter.Dispose();
                 connection.Close();
                 string pathFolder = "";
                 //Отбор всех индексов
@@ -140,28 +149,48 @@ namespace DataServiceApp
                         currentTableNumber = currentTableNumber.Substring(0, 3);
                         string tableName = $"ANLGI{hex}_0_{currentTableNumber}";
 
-                        var commandSelectTemperatures = new OleDbCommand
-                            ($"SELECT TOP 10 InstValue, DateTime FROM {tableName} ORDER BY 'DateTime' DESC", dataConnection);
+                        var commandSelectTemperatures = new OleDbCommand($@"SELECT TOP 10 InstValue, DateTime FROM [{tableName}]", dataConnection);
                         commandSelectTemperatures.Prepare();
-                        OleDbDataAdapter dataTemperatureAdapter = new OleDbDataAdapter();
-                        DataSet dataTemperatureSet = new DataSet();
+                        commandSelectTemperatures.CommandTimeout = 1000;
+                        commandSelectTemperatures.CommandType = CommandType.Text;
                         dataTemperatureAdapter.SelectCommand = commandSelectTemperatures;
-
-                        //ЗДЕСЬ БЕСКОНЕЧНАЯ ЗАГРУЗКА
+                        
                         using (OleDbDataReader reader = commandSelectTemperatures.ExecuteReader())
                         {
                             dataTemperatureSet.Load(reader, LoadOption.Upsert, dataConnection.DataSource);
+                             reader.Close();
                         }
-                        dataTemperatureAdapter.Fill(dataTemperatureSet);
-                        dataSets.Add(dataTemperatureSet, indexes[i]);
-                        dgTemperatures.ItemsSource = dataTemperatureSet.Tables[0].DefaultView;
-                        dataConnection.Close();
+                       dataTemperatureAdapter.Fill(dataTemperatureSet);
+                        currentIndex = indexes[i];
+                        if(dataTemperatureSet.Tables.Count>0)
+                        dataSets.Add(currentIndex, dataTemperatureSet.Tables[0].DefaultView.Table);
+                        dataTemperatureSet.Reset();
+                        var temperatureTable = dataSets.FirstOrDefault(x=>x.Key== indexes[i]);
+                       dataConnection.Close();
                     }
+                   // if (dataTemperatureSet.Tables.Count > 0)
+                   // {
+                   //     for (int j = 0; j <= dataTemperatureSet.Tables.Count; j++)
+                   //     {
+                   //         if (!dataSets.Keys.Contains(currentIndex)&&(!dataSets.Values.Contains(dataTemperatureSet.Tables[j].DefaultView.Table)))
+                   //         {
+                   //             dataSets.Add(currentIndex, dataTemperatureSet.Tables[j].DefaultView.Table);
+                   //         }
+                   //     }
+                   // }
+                    
+                    
                 }
+                
                 dgUnits.ItemsSource = dataSet.Tables[0].DefaultView;
-                Manager.dataSet = dataSet;
-                dataSet.Dispose();
-
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message.ToString());
+            }
+            try
+            {
+                GC.Collect();
             }
             catch (Exception ex)
             {
@@ -208,19 +237,51 @@ namespace DataServiceApp
         //Запись путя до папки в файл
         private void btnApply_Click(object sender, RoutedEventArgs e)
         {
-            try
+            ServiceController service = new ServiceController("Служба интеграции");
+            if (service.Status != ServiceControllerStatus.Running)
             {
-                path = tbPath.Text;
-                if (connection != null)
+                try
                 {
-                    connection.Close();
+                    path[0] = tbPath.Text;
+                    if (connection != null)
+                    {
+                        connection.Close();
+                    }
+                    dataSets.Clear();
+                    indexes.Clear();
+                    File.WriteAllText("DatabasePath", path[0]);
+                    StopService("Служба интеграции");
+                    dataUpdate();
+                    GC.Collect();
                 }
-                File.WriteAllText("DatabasePath", path);
-                dataUpdate();
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Возникла ошибка, возможно, данного пути не существует. \nПодробно:\n" + ex.Message.ToString());
+                }
             }
-            catch (Exception ex)
+            else
             {
-                MessageBox.Show("Возникла ошибка, возможно, данного пути не существует. \nПодробно:\n" + ex.Message.ToString());
+                if (MessageBox.Show("Чтобы выбрать новый путь, необходимо остановить службу. Остановить службу и поменять путь до базы данных?", "Предупреждение", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+                {
+                    try
+                    {
+                        path[0] = tbPath.Text;
+                        if (connection != null)
+                        {
+                            connection.Close();
+                        }
+                        dataSets.Clear();
+                        indexes.Clear();
+                        File.WriteAllText("DatabasePath", path[0]);
+                        StopService("Служба интеграции");
+                        dataUpdate();
+                        GC.Collect();
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("Возникла ошибка, возможно, данного пути не существует. \nПодробно:\n" + ex.Message.ToString());
+                    }
+                }
             }
 
         }
@@ -282,15 +343,25 @@ namespace DataServiceApp
             txtCurrentState.Foreground = Brushes.Green;
             btnStart.IsEnabled = false;
             btnPause.IsEnabled = true;
+            MessageBox.Show("Служба была успешно запущена!");
         }
 
         private void btnPause_Click(object sender, RoutedEventArgs e)
         {
-            StopService("Служба интеграции");
-            txtCurrentState.Text = "Текущее состояние службы:\n Служба приостановлена";
-            txtCurrentState.Foreground = Brushes.Yellow;
-            btnStart.IsEnabled = true;
-            btnPause.IsEnabled = false;
+            ServiceController service = new ServiceController("Служба интеграции");
+            if (service.Status == ServiceControllerStatus.Stopped)
+            {
+                System.Windows.Forms.MessageBox.Show("Служба уже остановлена!");
+            }
+            else
+            {
+                StopService("Служба интеграции");
+                txtCurrentState.Text = "Текущее состояние службы:\n Служба приостановлена";
+                txtCurrentState.Foreground = Brushes.Yellow;
+                btnStart.IsEnabled = true;
+                btnPause.IsEnabled = false;
+                MessageBox.Show("Служба была успешно остановлена!");
+            }
         }
 
         private void btnReStart_Click(object sender, RoutedEventArgs e)
@@ -307,11 +378,12 @@ namespace DataServiceApp
             if (service.Status != ServiceControllerStatus.Running)
             {
                 // Запускаем службу
-                service.Start();
+                service.Start(path);
 
                 // В течении минуты ждём статус от службы
                 service.WaitForStatus(ServiceControllerStatus.Running, TimeSpan.FromMinutes(1));
-                MessageBox.Show("Служба была успешно запущена!");
+                
+                
             }
             else
             {
@@ -329,11 +401,7 @@ namespace DataServiceApp
                 // Останавливаем службу
                 service.Stop();
                 service.WaitForStatus(ServiceControllerStatus.Stopped, TimeSpan.FromMinutes(1));
-                MessageBox.Show("Служба была успешно остановлена!");
-            }
-            else
-            {
-                MessageBox.Show("Служба уже остановлена!");
+                
             }
         }
 
@@ -356,7 +424,7 @@ namespace DataServiceApp
                 txtCurrentState.Text = "Текущее состояние службы:\n Перезапуск службы. Запускаем службу...";
                 txtCurrentState.Foreground = Brushes.Yellow;
                 // Запускаем службу
-                service.Start();
+                service.Start(path);
                 service.WaitForStatus(ServiceControllerStatus.Running, timeout);
                 txtCurrentState.Text = "Текущее состояние службы:\n Служба запущена";
                 txtCurrentState.Foreground = Brushes.Green;

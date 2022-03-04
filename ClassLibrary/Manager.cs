@@ -9,6 +9,6 @@ namespace ClassLibrary
 {
     public class Manager
     {
-        public static DataSet dataSet { get; set; }
+        public static Dictionary<int, DataSet> dataSets { get; set; }
     }
 }
