@@ -1,4 +1,4 @@
-﻿using ClassLibrary;
+﻿
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
@@ -9,17 +9,16 @@ using System.Threading.Tasks;
 using System.IO.MemoryMappedFiles;
 using System.Data.OleDb;
 using System;
-using System.Windows.Forms;
 using System.Data.Linq;
 using System.Text;
 using System.Linq;
 using System.Diagnostics;
+using System.Data.SqlClient;
 
 namespace DataService
 {
     public partial class DataService : ServiceBase
     {
-        private OpenFileDialog openFile = new OpenFileDialog();
         private OleDbConnection connection = new OleDbConnection();
         private OleDbConnection dataConnection = new OleDbConnection();
         private OleDbDataAdapter dataAdapter = new OleDbDataAdapter();
@@ -29,7 +28,7 @@ namespace DataService
         private DataContext db = null;
         private static DataSet dataSet = new DataSet();
         private static List<int> indexes = new List<int>();
-        public static Dictionary<int, DataTable> dataTables = new Dictionary<int, DataTable>();
+        public static Dictionary<string, DataTable> dataTables = new Dictionary<string, DataTable>();
         static EventLog myLog;
         public string tableName = "";
         private int currentIndex = 0;
@@ -93,8 +92,6 @@ namespace DataService
             
             GC.Collect();
             GC.WaitForPendingFinalizers();
-            //myLog = new EventLog("D:\\templog.txt");
-            //myLog.WriteEntry(ex.Message.ToString());
 
         }
 
@@ -188,11 +185,88 @@ namespace DataService
                         }
                         dataTemperatureAdapter.Fill(dataTemperatureSet);
                         currentIndex = indexes[i];
-                        dataTables.Add(currentIndex, dataTemperatureSet.Tables[0].DefaultView.Table);
+
+                        // Presuming the DataTable has a column named Date.
+                        string expression;
+                        expression = $"Index = {currentIndex}";
+                        DataRow[] foundRows;
+
+                        // Use the Select method to find all rows matching the filter.
+                        foundRows = dataSet.Tables[0].Select(expression);
+
+                        var currentEquipment = foundRows[0][0].ToString();
+                        if (dataTemperatureSet.Tables.Count > 0)
+                            dataTables.Add(currentEquipment, dataTemperatureSet.Tables[0].DefaultView.Table);
+                        SqlConnection conn = new SqlConnection(@"Data Source=.\SQLEXPRESS;Initial Catalog=EquipmentTemperatures;" + "Integrated Security=true;");
+                        conn.Open();
+                        SqlCommand cmdSelectTableNames = new SqlCommand("SELECT TABLE_NAME FROM EquipmentTemperatures.INFORMATION_SCHEMA.TABLES ORDER BY TABLE_NAME", conn);
+                        SqlDataAdapter sqlAdapter = new SqlDataAdapter();
+                        DataSet tableNames = new DataSet();
+                        sqlAdapter.SelectCommand = cmdSelectTableNames;
+                        using (SqlDataReader dataReader = cmdSelectTableNames.ExecuteReader())
+                        {
+                            tableNames.Load(dataReader, LoadOption.Upsert, connection.DataSource);
+                            dataReader.Close();
+                        }
+                        sqlAdapter.Fill(tableNames);
+                        tableNames.Tables[0].Columns[0].Unique = true;
+                        tableNames.Tables[0].PrimaryKey = new DataColumn[] { tableNames.Tables[0].Columns["TABLE_NAME"] };
+                        bool hasName = false;
+                        for (int j = 0; j < tableNames.Tables[0].Rows.Count; j++)
+                        {
+                            if (tableNames.Tables[0].Rows[j].ItemArray[0].ToString() == currentEquipment) { hasName = true; }
+
+                        }
+                        if (hasName)
+                        {
+                            try
+                            {
+                                foreach (DataRow row in dataTemperatureSet.Tables[0].Rows)
+                                {
+                                    decimal instValue = Convert.ToDecimal(row[0].ToString());
+                                    string value = instValue.ToString().Replace(',', '.');
+                                    string dateTime = Convert.ToString(row[1]);
+                                    using (var command = new SqlCommand($"INSERT INTO [{currentEquipment}] (InstValue, DateTime) VALUES ({value}, CAST('{dateTime}' AS DateTime))", conn))
+                                    {
+                                        command.ExecuteNonQuery();
+                                    }
+                                }
+
+                            }
+                            catch (Exception ex)
+                            {
+                                
+                            }
+
+                        }
+                        else
+                        {
+                            try
+                            {
+                                using (var command = new SqlCommand($"CREATE TABLE [{currentEquipment}] (InstValue float, DateTime dateTime)", conn))
+                                {
+                                    command.ExecuteNonQuery();
+                                }
+
+                                foreach (DataRow row in dataTemperatureSet.Tables[0].Rows)
+                                {
+                                    decimal instValue = Convert.ToDecimal(row[0].ToString());
+                                    string value = instValue.ToString().Replace(',', '.');
+                                    string dateTime = Convert.ToString(row[1]);
+                                    using (var command = new SqlCommand($"INSERT INTO [{currentEquipment}] (InstValue, DateTime) VALUES ({value}, CAST('{dateTime}' AS DateTime))", conn))
+                                    {
+                                        command.ExecuteNonQuery();
+                                    }
+                                }
+
+                            }
+                            catch (Exception ex)
+                            {
+                                
+                            }
+                        }
                         dataTemperatureSet.Reset();
-                        dataConnection.Close();
                     }
-                    
                 }
 
             }
@@ -200,6 +274,7 @@ namespace DataService
             {
                 
             }
+            dataConnection.Close();
 
         }
 

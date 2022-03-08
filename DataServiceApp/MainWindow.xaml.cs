@@ -1,5 +1,4 @@
-﻿using ClassLibrary;
-using Microsoft.Win32;
+﻿using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Configuration.Install;
@@ -14,6 +13,9 @@ using System.Windows.Media;
 using System.Data.Linq;
 using System.Threading;
 using System.IO.MemoryMappedFiles;
+using System.Data.SqlClient;
+using System.Data.Linq.SqlClient;
+using System.Globalization;
 
 namespace DataServiceApp
 {
@@ -32,7 +34,7 @@ namespace DataServiceApp
         private DataContext db = null;
         private static DataSet dataSet = new DataSet();
         private static List<int> indexes = new List<int>();
-        public static Dictionary<int, DataTable> dataSets = new Dictionary<int, DataTable>();
+        public static Dictionary<string, DataTable> dataTables = new Dictionary<string, DataTable>();
         private int currentIndex = 0;
 
         static string[] path = new string[1];
@@ -160,42 +162,102 @@ namespace DataServiceApp
                             dataTemperatureSet.Load(reader, LoadOption.Upsert, dataConnection.DataSource);
                              reader.Close();
                         }
-                       dataTemperatureAdapter.Fill(dataTemperatureSet);
+                        dataTemperatureAdapter.Fill(dataTemperatureSet);
                         currentIndex = indexes[i];
-                        if(dataTemperatureSet.Tables.Count>0)
-                        dataSets.Add(currentIndex, dataTemperatureSet.Tables[0].DefaultView.Table);
+
+                        // Presuming the DataTable has a column named Date.
+                        string expression;
+                        expression = $"Index = {currentIndex}";
+                        DataRow[] foundRows;
+
+                        // Use the Select method to find all rows matching the filter.
+                        foundRows = dataSet.Tables[0].Select(expression);
+
+                        var currentEquipment = foundRows[0][0].ToString();
+                        if (dataTemperatureSet.Tables.Count > 0)
+                            dataTables.Add(currentEquipment, dataTemperatureSet.Tables[0]);
+                       
+                       //SqlConnection conn = new SqlConnection(@"Data Source=.\SQLEXPRESS;Initial Catalog=EquipmentTemperatures;" + "Integrated Security=true;");
+                       //conn.Open();
+                       //SqlCommand cmdSelectTableNames = new SqlCommand("SELECT TABLE_NAME FROM EquipmentTemperatures.INFORMATION_SCHEMA.TABLES ORDER BY TABLE_NAME", conn);
+                       //SqlDataAdapter sqlAdapter = new SqlDataAdapter();
+                       //DataSet tableNames = new DataSet();
+                       //sqlAdapter.SelectCommand = cmdSelectTableNames;
+                       //using (SqlDataReader dataReader = cmdSelectTableNames.ExecuteReader())
+                       //{
+                       //    tableNames.Load(dataReader, LoadOption.Upsert, connection.DataSource);
+                       //    dataReader.Close();
+                       //}
+                       //sqlAdapter.Fill(tableNames);
+                       //tableNames.Tables[0].Columns[0].Unique = true;
+                       //tableNames.Tables[0].PrimaryKey = new DataColumn[] { tableNames.Tables[0].Columns["TABLE_NAME"] };
+                       //bool hasName = false;
+                       //for (int j = 0; j < tableNames.Tables[0].Rows.Count; j++)
+                       //{
+                       //    if (tableNames.Tables[0].Rows[j].ItemArray[0].ToString() == currentEquipment) { hasName = true; }
+                       //
+                       //}
+                       //if (hasName)
+                       //{
+                       //    try
+                       //    {
+                       //        foreach (DataRow row in dataTemperatureSet.Tables[0].Rows)
+                       //        {
+                       //            decimal instValue = Convert.ToDecimal(row[0].ToString());
+                       //            string value = instValue.ToString().Replace(',','.');
+                       //            string dateTime = Convert.ToString(row[1]);
+                       //            using (var command = new SqlCommand($"INSERT INTO [{currentEquipment}] (InstValue, DateTime) VALUES ({value}, CAST('{dateTime}' AS DateTime))", conn))
+                       //            {
+                       //                command.ExecuteNonQuery();
+                       //            }
+                       //        }
+                       //
+                       //    }
+                       //    catch (Exception ex)
+                       //    {
+                       //        System.Windows.Forms.MessageBox.Show(ex.Message.ToString());
+                       //    }
+                       //
+                       //}
+                       //else
+                       //{
+                       //    try
+                       //    {
+                       //        using (var command = new SqlCommand($"CREATE TABLE [{currentEquipment}] (InstValue float, DateTime dateTime)", conn))
+                       //        {
+                       //            command.ExecuteNonQuery();
+                       //        }
+                       //
+                       //        foreach (DataRow row in dataTemperatureSet.Tables[0].Rows)
+                       //        {
+                       //            decimal instValue = Convert.ToDecimal(row[0].ToString());
+                       //            string value = instValue.ToString().Replace(',', '.');
+                       //            string dateTime = Convert.ToString(row[1]);
+                       //            using (var command = new SqlCommand($"INSERT INTO [{currentEquipment}] (InstValue, DateTime) VALUES ({value}, CAST('{dateTime}' AS DateTime))", conn))
+                       //            {
+                       //                command.ExecuteNonQuery();
+                       //            }
+                       //        }
+                       //
+                       //    }
+                       //    catch (Exception ex)
+                       //    {
+                       //        System.Windows.Forms.MessageBox.Show(ex.Message.ToString());
+                       //    }
+                       //}
                         dataTemperatureSet.Reset();
-                        var temperatureTable = dataSets.FirstOrDefault(x=>x.Key== indexes[i]);
-                       dataConnection.Close();
                     }
-                   // if (dataTemperatureSet.Tables.Count > 0)
-                   // {
-                   //     for (int j = 0; j <= dataTemperatureSet.Tables.Count; j++)
-                   //     {
-                   //         if (!dataSets.Keys.Contains(currentIndex)&&(!dataSets.Values.Contains(dataTemperatureSet.Tables[j].DefaultView.Table)))
-                   //         {
-                   //             dataSets.Add(currentIndex, dataTemperatureSet.Tables[j].DefaultView.Table);
-                   //         }
-                   //     }
-                   // }
-                    
-                    
                 }
-                
                 dgUnits.ItemsSource = dataSet.Tables[0].DefaultView;
             }
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message.ToString());
             }
-            try
-            {
+            
                 GC.Collect();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message.ToString());
-            }
+            dataConnection.Close();
+
         }
 
         //Подсоединение к базе
@@ -247,7 +309,7 @@ namespace DataServiceApp
                     {
                         connection.Close();
                     }
-                    dataSets.Clear();
+                    dataTables.Clear();
                     indexes.Clear();
                     File.WriteAllText("DatabasePath", path[0]);
                     StopService("Служба интеграции");
@@ -270,7 +332,7 @@ namespace DataServiceApp
                         {
                             connection.Close();
                         }
-                        dataSets.Clear();
+                        dataTables.Clear();
                         indexes.Clear();
                         File.WriteAllText("DatabasePath", path[0]);
                         StopService("Служба интеграции");
@@ -435,6 +497,11 @@ namespace DataServiceApp
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             dataUpdate();
+        }
+
+        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            StopService("Служба интеграции");
         }
     }
 }
