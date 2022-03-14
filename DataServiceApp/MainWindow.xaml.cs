@@ -16,6 +16,7 @@ using System.IO.MemoryMappedFiles;
 using System.Data.SqlClient;
 using System.Data.Linq.SqlClient;
 using System.Globalization;
+using Topshelf;
 
 namespace DataServiceApp
 {
@@ -44,12 +45,38 @@ namespace DataServiceApp
             InitializeComponent();
 
             //Открытие последнего путя до папки с таблицами
-            StreamReader sr = new StreamReader("DatabasePath");
-            path[0] = sr.ReadLine();
-            sr.Close();
-            sr.Dispose();
+            try
+            {
+                StreamReader sr = new StreamReader("DatabasePath");
+                path[0] = sr.ReadLine();
+                sr.Close();
+                sr.Dispose();
+                tbPath.Text = path[0];
+            }
+            catch(Exception ex)
+            {
 
-            tbPath.Text = path[0];
+            }
+
+           //var exitCode = HostFactory.Run(x =>
+           //{
+           //   x.Service<DataUpdate>(s => 
+           //   {
+           //       s.ConstructUsing(dataupdate => new DataUpdate(path[0]));
+           //       s.WhenStarted(dataupdate => dataupdate.Start());
+           //       s.WhenStarted(dataupdate => dataupdate.Stop());
+           //   });
+           //
+           //    x.RunAsLocalSystem();
+           //    
+           //
+           //    x.SetServiceName("DataUpdateService");
+           //    x.SetDisplayName("Обновление базы данных температур");
+           //    x.SetDescription("Служба, осуществляющая интеграцию локальной базы данных температур оборудования в SQL-Server");
+           //
+           //});
+           //int exitCodeValue = (int)Convert.ChangeType(exitCode, exitCode.GetTypeCode());
+           //Environment.ExitCode = exitCodeValue;
 
             openFile.FileName = "../../../DataService/bin/Debug/DataService.exe";
             var serviceExists = ServiceController.GetServices().Any(s => s.DisplayName == "Служба интеграции");
@@ -82,8 +109,9 @@ namespace DataServiceApp
 
                 btnDelete.IsEnabled = true;
                 btnInstall.IsEnabled = false;
+                service.Dispose();
             }
-            service.Dispose();
+            
         }
 
         //Выбор папки с температурами по индексу оборудования
@@ -129,125 +157,141 @@ namespace DataServiceApp
                 connection.Close();
                 string pathFolder = "";
                 //Отбор всех индексов
-                for (var i = 0; i < dataSet.Tables[0].Rows.Count; i++)
-                {
-                    indexes.Add(Convert.ToInt32(dataSet.Tables[0].Rows[i][1]));
-                }
-                //Создание таблиц с температурой для каждой ед. оборудования
-                for (int i = 0; i < indexes.Count; i++)
-                {
-                    //Путь до папки с таблицами температур
-                    pathFolder = selectFolder(indexes[i]);
-                    if (Directory.Exists(pathFolder))
-                    {
-                        dataConnection = new OleDbConnection();
-                        dataConnection = OpenConnection(dataConnection, pathFolder);
-
-                        //Выбор последней созданной таблицы с температурой
-                        string hex = indexes[i].ToString("X4");
-                        string[] allfiles = Directory.GetFiles(pathFolder, $"ANLGI{hex}_0_???.DB");
-                        string currentTable = allfiles.Last();
-                        string currentTableNumber = currentTable.Substring(currentTable.Length - 6);
-                        currentTableNumber = currentTableNumber.Substring(0, 3);
-                        string tableName = $"ANLGI{hex}_0_{currentTableNumber}";
-
-                        var commandSelectTemperatures = new OleDbCommand($@"SELECT TOP 10 InstValue, DateTime FROM [{tableName}]", dataConnection);
-                        commandSelectTemperatures.Prepare();
-                        commandSelectTemperatures.CommandTimeout = 1000;
-                        commandSelectTemperatures.CommandType = CommandType.Text;
-                        dataTemperatureAdapter.SelectCommand = commandSelectTemperatures;
-                        
-                        using (OleDbDataReader reader = commandSelectTemperatures.ExecuteReader())
-                        {
-                            dataTemperatureSet.Load(reader, LoadOption.Upsert, dataConnection.DataSource);
-                             reader.Close();
-                        }
-                        dataTemperatureAdapter.Fill(dataTemperatureSet);
-                        currentIndex = indexes[i];
-
-                        // Presuming the DataTable has a column named Date.
-                        string expression;
-                        expression = $"Index = {currentIndex}";
-                        DataRow[] foundRows;
-
-                        // Use the Select method to find all rows matching the filter.
-                        foundRows = dataSet.Tables[0].Select(expression);
-
-                        var currentEquipment = foundRows[0][0].ToString();
-                        if (dataTemperatureSet.Tables.Count > 0)
-                            dataTables.Add(currentEquipment, dataTemperatureSet.Tables[0]);
+               //for (var i = 0; i < dataSet.Tables[0].Rows.Count; i++)
+               //{
+               //    indexes.Add(Convert.ToInt32(dataSet.Tables[0].Rows[i][1]));
+               //}
+               ////Создание таблиц с температурой для каждой ед. оборудования
+               //for (int i = 0; i < indexes.Count; i++)
+               //{
+               //    //Путь до папки с таблицами температур
+               //    pathFolder = selectFolder(indexes[i]);
+               //    if (Directory.Exists(pathFolder))
+               //    {
+               //        dataConnection = new OleDbConnection();
+               //        dataConnection = OpenConnection(dataConnection, pathFolder);
+               //
+               //        //Выбор последней созданной таблицы с температурой
+               //        string hex = indexes[i].ToString("X4");
+               //        string[] allfiles = Directory.GetFiles(pathFolder, $"ANLGI{hex}_0_???.DB");
+               //        string currentTable = allfiles.Last();
+               //        string currentTableNumber = currentTable.Substring(currentTable.Length - 6);
+               //        currentTableNumber = currentTableNumber.Substring(0, 3);
+               //        string tableName = $"ANLGI{hex}_0_{currentTableNumber}";
+               //
+               //        var commandSelectTemperatures = new OleDbCommand($@"SELECT TOP 10 InstValue, DateTime FROM [{tableName}]", dataConnection);
+               //        commandSelectTemperatures.Prepare();
+               //        commandSelectTemperatures.CommandTimeout = 1000;
+               //        commandSelectTemperatures.CommandType = CommandType.Text;
+               //        dataTemperatureAdapter.SelectCommand = commandSelectTemperatures;
+               //        
+               //        using (OleDbDataReader reader = commandSelectTemperatures.ExecuteReader())
+               //        {
+               //            dataTemperatureSet.Load(reader, LoadOption.Upsert, dataConnection.DataSource);
+               //             reader.Close();
+               //        }
+               //        dataTemperatureAdapter.Fill(dataTemperatureSet);
+               //        currentIndex = indexes[i];
+               //
+               //        // Presuming the DataTable has a column named Date.
+               //        string expression;
+               //        expression = $"Index = {currentIndex}";
+               //        DataRow[] foundRows;
+               //
+               //        // Use the Select method to find all rows matching the filter.
+               //        foundRows = dataSet.Tables[0].Select(expression);
+               //
+               //        var currentEquipment = foundRows[0][0].ToString();
                        
-                       //SqlConnection conn = new SqlConnection(@"Data Source=.\SQLEXPRESS;Initial Catalog=EquipmentTemperatures;" + "Integrated Security=true;");
-                       //conn.Open();
-                       //SqlCommand cmdSelectTableNames = new SqlCommand("SELECT TABLE_NAME FROM EquipmentTemperatures.INFORMATION_SCHEMA.TABLES ORDER BY TABLE_NAME", conn);
-                       //SqlDataAdapter sqlAdapter = new SqlDataAdapter();
-                       //DataSet tableNames = new DataSet();
-                       //sqlAdapter.SelectCommand = cmdSelectTableNames;
-                       //using (SqlDataReader dataReader = cmdSelectTableNames.ExecuteReader())
-                       //{
-                       //    tableNames.Load(dataReader, LoadOption.Upsert, connection.DataSource);
-                       //    dataReader.Close();
-                       //}
-                       //sqlAdapter.Fill(tableNames);
-                       //tableNames.Tables[0].Columns[0].Unique = true;
-                       //tableNames.Tables[0].PrimaryKey = new DataColumn[] { tableNames.Tables[0].Columns["TABLE_NAME"] };
-                       //bool hasName = false;
-                       //for (int j = 0; j < tableNames.Tables[0].Rows.Count; j++)
-                       //{
-                       //    if (tableNames.Tables[0].Rows[j].ItemArray[0].ToString() == currentEquipment) { hasName = true; }
-                       //
-                       //}
-                       //if (hasName)
-                       //{
-                       //    try
-                       //    {
-                       //        foreach (DataRow row in dataTemperatureSet.Tables[0].Rows)
-                       //        {
-                       //            decimal instValue = Convert.ToDecimal(row[0].ToString());
-                       //            string value = instValue.ToString().Replace(',','.');
-                       //            string dateTime = Convert.ToString(row[1]);
-                       //            using (var command = new SqlCommand($"INSERT INTO [{currentEquipment}] (InstValue, DateTime) VALUES ({value}, CAST('{dateTime}' AS DateTime))", conn))
-                       //            {
-                       //                command.ExecuteNonQuery();
-                       //            }
-                       //        }
-                       //
-                       //    }
-                       //    catch (Exception ex)
-                       //    {
-                       //        System.Windows.Forms.MessageBox.Show(ex.Message.ToString());
-                       //    }
-                       //
-                       //}
-                       //else
-                       //{
-                       //    try
-                       //    {
-                       //        using (var command = new SqlCommand($"CREATE TABLE [{currentEquipment}] (InstValue float, DateTime dateTime)", conn))
-                       //        {
-                       //            command.ExecuteNonQuery();
-                       //        }
-                       //
-                       //        foreach (DataRow row in dataTemperatureSet.Tables[0].Rows)
-                       //        {
-                       //            decimal instValue = Convert.ToDecimal(row[0].ToString());
-                       //            string value = instValue.ToString().Replace(',', '.');
-                       //            string dateTime = Convert.ToString(row[1]);
-                       //            using (var command = new SqlCommand($"INSERT INTO [{currentEquipment}] (InstValue, DateTime) VALUES ({value}, CAST('{dateTime}' AS DateTime))", conn))
-                       //            {
-                       //                command.ExecuteNonQuery();
-                       //            }
-                       //        }
-                       //
-                       //    }
-                       //    catch (Exception ex)
-                       //    {
-                       //        System.Windows.Forms.MessageBox.Show(ex.Message.ToString());
-                       //    }
-                       //}
+                        //SqlConnection conn = new SqlConnection(@"Data Source=.\SQLEXPRESS;Initial Catalog=EquipmentTemperatures;" + "Integrated Security=true;");
+                        //conn.Open();
+                        //SqlCommand cmdSelectTableNames = new SqlCommand("SELECT TABLE_NAME FROM EquipmentTemperatures.INFORMATION_SCHEMA.TABLES ORDER BY TABLE_NAME", conn);
+                        //SqlDataAdapter sqlAdapter = new SqlDataAdapter();
+                        //DataSet tableNames = new DataSet();
+                        //sqlAdapter.SelectCommand = cmdSelectTableNames;
+                        //using (SqlDataReader dataReader = cmdSelectTableNames.ExecuteReader())
+                        //{
+                        //    tableNames.Load(dataReader, LoadOption.Upsert, connection.DataSource);
+                        //    dataReader.Close();
+                        //}
+                        //sqlAdapter.Fill(tableNames);
+                        //tableNames.Tables[0].Columns[0].Unique = true;
+                        //tableNames.Tables[0].PrimaryKey = new DataColumn[] { tableNames.Tables[0].Columns["TABLE_NAME"] };
+                        //bool hasName = false;
+                        //for (int j = 0; j < tableNames.Tables[0].Rows.Count; j++)
+                        //{
+                        //    if (tableNames.Tables[0].Rows[j].ItemArray[0].ToString() == currentEquipment) { hasName = true; }
+                        //
+                        //}
+                        //if (hasName)
+                        //{
+                        //    try
+                        //    {
+                        //         SqlCommand cmdSelectTemp = new SqlCommand($"SELECT * FROM [{currentEquipment}]", conn);
+                        //         SqlDataAdapter sqlAdapterTemp = new SqlDataAdapter();
+                        //         DataSet tableTemp = new DataSet();
+                        //         sqlAdapter.SelectCommand = cmdSelectTableNames;
+                        //         using (SqlDataReader dataReader = cmdSelectTemp.ExecuteReader())
+                        //         {
+                        //             tableTemp.Load(dataReader, LoadOption.Upsert, connection.DataSource);
+                        //             dataReader.Close();
+                        //         }
+                        //         foreach (DataRow row in dataTemperatureSet.Tables[0].Rows)
+                        //         {
+                        //             bool hasDate = false;
+                        //             decimal instValue = Convert.ToDecimal(row[0].ToString());
+                        //             string value = instValue.ToString().Replace(',', '.');
+                        //             string dateTime = Convert.ToString(row[1]);
+                        //             for (int j = 0; j < tableTemp.Tables[0].Rows.Count; j++)
+                        //             {
+                        //                 if (tableTemp.Tables[0].Rows[j].ItemArray[1].ToString() == dateTime) { hasDate = true; }
+                        //             }
+                        //             if (!hasDate)
+                        //             {
+                        //                 using (var command = new SqlCommand($"INSERT INTO [{currentEquipment}] (InstValue, DateTime) VALUES ({value}, CAST('{dateTime}' AS DateTime))", conn))
+                        //                 {
+                        //                     command.ExecuteNonQuery();
+                        //                     File.AppendAllText(@"C:\Users\nneke\Desktop\values.txt", value + " " + dateTime + "\n");
+                        //                 }
+                        //             }
+                        //         }
+                        //
+                        //     }
+                        //    catch (Exception ex)
+                        //    {
+                        //        System.Windows.Forms.MessageBox.Show(ex.Message.ToString());
+                        //    }
+                        //
+                        //}
+                        //else
+                        //{
+                        //    try
+                        //    {
+                        //        using (var command = new SqlCommand($"CREATE TABLE [{currentEquipment}] (InstValue float, DateTime dateTime)", conn))
+                        //        {
+                        //            command.ExecuteNonQuery();
+                        //        }
+                        //
+                        //        foreach (DataRow row in dataTemperatureSet.Tables[0].Rows)
+                        //        {
+                        //            decimal instValue = Convert.ToDecimal(row[0].ToString());
+                        //            string value = instValue.ToString().Replace(',', '.');
+                        //            string dateTime = Convert.ToString(row[1]);
+                        //            using (var command = new SqlCommand($"INSERT INTO [{currentEquipment}] (InstValue, DateTime) VALUES ({value}, CAST('{dateTime}' AS DateTime))", conn))
+                        //            {
+                        //                command.ExecuteNonQuery();
+                        //            }
+                        //        }
+                        //
+                        //    }
+                        //    catch (Exception ex)
+                        //    {
+                        //        System.Windows.Forms.MessageBox.Show(ex.Message.ToString());
+                        //    }
+                        //}
                         dataTemperatureSet.Reset();
-                    }
-                }
+                   // }
+               // }
                 dgUnits.ItemsSource = dataSet.Tables[0].DefaultView;
             }
             catch (Exception ex)
@@ -440,6 +484,7 @@ namespace DataServiceApp
             if (service.Status != ServiceControllerStatus.Running)
             {
                 // Запускаем службу
+                
                 service.Start(path);
 
                 // В течении минуты ждём статус от службы
