@@ -37,12 +37,28 @@ namespace DataServiceApp
         private static List<int> indexes = new List<int>();
         public static Dictionary<string, DataTable> dataTables = new Dictionary<string, DataTable>();
         private int currentIndex = 0;
+        System.Windows.Forms.NotifyIcon icon = new System.Windows.Forms.NotifyIcon();
+        System.Windows.Forms.ContextMenu m_menu = new System.Windows.Forms.ContextMenu();
 
         static string[] path = new string[1];
 
         public MainWindow()
         {
             InitializeComponent();
+            icon.Icon = new System.Drawing.Icon("kumz.ico");
+            icon.Click += Icon_Click;
+            m_menu.MenuItems.Add(0,
+                new System.Windows.Forms.MenuItem("Показать", new System.EventHandler(Show_Click)));
+            m_menu.MenuItems.Add(1,
+                new System.Windows.Forms.MenuItem("Запустить службу", new System.EventHandler(Start_Click)));
+            m_menu.MenuItems.Add(2,
+                new System.Windows.Forms.MenuItem("Остановить службу", new System.EventHandler(Pause_Click)));
+            m_menu.MenuItems.Add(3,
+                new System.Windows.Forms.MenuItem("Настройки", new System.EventHandler(Settings_Click)));
+            m_menu.MenuItems.Add(4,
+                new System.Windows.Forms.MenuItem("Выход", new System.EventHandler(Exit_Click)));
+            icon.ContextMenu = m_menu;
+            icon.Visible = true;
 
             //Открытие последнего путя до папки с таблицами
             try
@@ -58,26 +74,6 @@ namespace DataServiceApp
 
             }
 
-           //var exitCode = HostFactory.Run(x =>
-           //{
-           //   x.Service<DataUpdate>(s => 
-           //   {
-           //       s.ConstructUsing(dataupdate => new DataUpdate(path[0]));
-           //       s.WhenStarted(dataupdate => dataupdate.Start());
-           //       s.WhenStarted(dataupdate => dataupdate.Stop());
-           //   });
-           //
-           //    x.RunAsLocalSystem();
-           //    
-           //
-           //    x.SetServiceName("DataUpdateService");
-           //    x.SetDisplayName("Обновление базы данных температур");
-           //    x.SetDescription("Служба, осуществляющая интеграцию локальной базы данных температур оборудования в SQL-Server");
-           //
-           //});
-           //int exitCodeValue = (int)Convert.ChangeType(exitCode, exitCode.GetTypeCode());
-           //Environment.ExitCode = exitCodeValue;
-
             openFile.FileName = "../../../DataService/bin/Debug/DataService.exe";
             var serviceExists = ServiceController.GetServices().Any(s => s.DisplayName == "Служба интеграции");
             ServiceController service = ServiceController.GetServices().FirstOrDefault(s => s.DisplayName == "Служба интеграции");
@@ -88,11 +84,16 @@ namespace DataServiceApp
                 btnPause.IsEnabled = false;
                 btnReStart.IsEnabled = false;
                 btnStart.IsEnabled = false;
+                stateSettingsTab.Visibility = Visibility.Hidden;
                 txtCurrentState.Text = "Текущее состояние службы:\n Служба не установлена";
                 txtCurrentState.Foreground = Brushes.Red;
+                m_menu.MenuItems[3].Enabled=false;
+                
             }
             else
             {
+                stateSettingsTab.Visibility = Visibility.Visible;
+                m_menu.MenuItems[3].Enabled = true;
                 if (service.Status == ServiceControllerStatus.Running)
                 {
                     txtCurrentState.Text = "Текущее состояние службы:\n Служба запущена";
@@ -113,6 +114,8 @@ namespace DataServiceApp
             }
             
         }
+
+        
 
         //Выбор папки с температурами по индексу оборудования
         public string selectFolder(int index)
@@ -359,6 +362,10 @@ namespace DataServiceApp
                     StopService("Служба интеграции");
                     dataUpdate();
                     GC.Collect();
+                    txtCurrentState.Text = "Текущее состояние службы:\n Служба приостановлена";
+                    txtCurrentState.Foreground = Brushes.Yellow;
+                    btnStart.IsEnabled = true;
+                    btnPause.IsEnabled = false;
                 }
                 catch (Exception ex)
                 {
@@ -382,6 +389,10 @@ namespace DataServiceApp
                         StopService("Служба интеграции");
                         dataUpdate();
                         GC.Collect();
+                        txtCurrentState.Text = "Текущее состояние службы:\n Служба приостановлена";
+                        txtCurrentState.Foreground = Brushes.Yellow;
+                        btnStart.IsEnabled = true;
+                        btnPause.IsEnabled = false;
                     }
                     catch (Exception ex)
                     {
@@ -392,19 +403,20 @@ namespace DataServiceApp
 
         }
 
+        //Установка службы
         private void btnInstall_Click(object sender, RoutedEventArgs e)
         {
             ServiceController service = new ServiceController("Служба интеграции");
-            try
-            {
-                ManagedInstallerClass.InstallHelper(new[] { openFile.FileName });
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message.ToString());
-                return;
-            }
-            MessageBox.Show("Установка сервиса выполнена!");
+            //try
+           // {
+                ManagedInstallerClass.InstallHelper(new[] {@"/", openFile.FileName });
+            //}
+           // catch (Exception ex)
+           // {
+               // MessageBox.Show(ex.Message.ToString());
+                //return;
+            //}
+            MessageBox.Show("Установка службы выполнена!");
             txtCurrentState.Text = "Текущее состояние службы:\n Служба приостановлена";
             txtCurrentState.Foreground = Brushes.Yellow;
             btnDelete.IsEnabled = true;
@@ -412,8 +424,11 @@ namespace DataServiceApp
             btnPause.IsEnabled = false;
             btnReStart.IsEnabled = true;
             btnStart.IsEnabled = true;
+            stateSettingsTab.Visibility = Visibility.Visible;
+            m_menu.MenuItems[3].Enabled = true;
         }
 
+        //Удаление службы
         private void btnDelete_Click(object sender, RoutedEventArgs e)
         {
             if (MessageBox.Show("Вы точно хотите удалить службу?", "Предупреждение", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
@@ -427,7 +442,7 @@ namespace DataServiceApp
                     MessageBox.Show(ex.Message.ToString());
                     return;
                 }
-                MessageBox.Show("Сервис удален успешно!");
+                MessageBox.Show("Служба удалена успешно!");
                 txtCurrentState.Text = "Текущее состояние службы:\n Служба не установлена";
                 txtCurrentState.Foreground = Brushes.Red;
                 btnInstall.IsEnabled = true;
@@ -435,6 +450,8 @@ namespace DataServiceApp
                 btnPause.IsEnabled = false;
                 btnReStart.IsEnabled = false;
                 btnStart.IsEnabled = false;
+                stateSettingsTab.Visibility = Visibility.Hidden;
+                m_menu.MenuItems[3].Enabled = false;
             }
             else
             {
@@ -477,13 +494,14 @@ namespace DataServiceApp
             btnPause.IsEnabled = true;
         }
 
-        public static void StartService(string serviceName)
+        public static async void StartService(string serviceName)
         {
             ServiceController service = new ServiceController(serviceName);
             // Проверяем не запущена ли служба
             if (service.Status != ServiceControllerStatus.Running)
             {
                 // Запускаем службу
+                service.MachineName = @"DESKTOP-KORPNPP";
                 
                 service.Start(path);
 
@@ -501,15 +519,24 @@ namespace DataServiceApp
         // Останавливаем службу
         public static void StopService(string serviceName)
         {
-            ServiceController service = new ServiceController(serviceName);
-            // Если служба не остановлена
-            if (service.Status != ServiceControllerStatus.Stopped)
+            
+            try
             {
-                // Останавливаем службу
-                service.Stop();
-                service.WaitForStatus(ServiceControllerStatus.Stopped, TimeSpan.FromMinutes(1));
-                
+                ServiceController service = new ServiceController(serviceName);
+                // Если служба не остановлена
+                if (service.Status != ServiceControllerStatus.Stopped)
+                {
+                    // Останавливаем службу
+                    service.Stop();
+                    service.WaitForStatus(ServiceControllerStatus.Stopped, TimeSpan.FromMinutes(1));
+
+                }
             }
+            catch(Exception)
+            {
+
+            }
+            
         }
 
         // Перезапуск службы
@@ -547,6 +574,99 @@ namespace DataServiceApp
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             StopService("Служба интеграции");
+        }
+
+        private void Icon_Click(object sender, EventArgs e)
+        {
+            if (this.WindowState == WindowState.Minimized)
+            {
+                this.WindowState = WindowState.Normal;
+                this.ShowInTaskbar = true;
+                this.Activate();
+            }
+        }
+
+        private void Window_Deactivated(object sender, EventArgs e)
+        {
+            if (this.WindowState == WindowState.Minimized)
+            {
+                icon.Visible = true;
+            }
+        }
+
+        private void Exit_Click(object sender, EventArgs e)
+        {
+            this.Close();
+        }
+
+        private void Settings_Click(object sender, EventArgs e)
+        {
+            this.WindowState = WindowState.Normal;
+            this.ShowInTaskbar = true;
+            this.Activate();
+            stateSettingsTab.IsSelected = true;
+            
+        }
+
+        private void Start_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                ServiceController service = new ServiceController("Служба интеграции");
+                // Проверяем не запущена ли служба
+                if (service.Status != ServiceControllerStatus.Running)
+                {
+                    // Запускаем службу
+                    service.MachineName = @"DESKTOP-KORPNPP";
+
+                    service.Start(path);
+
+                    // В течении минуты ждём статус от службы
+                    service.WaitForStatus(ServiceControllerStatus.Running, TimeSpan.FromMinutes(1));
+
+
+                }
+                else
+                {
+                    MessageBox.Show("Служба уже запущена!");
+                }
+            }
+            catch(Exception ex)
+            {
+                MessageBox.Show("Служба не установлена");
+            }
+        }
+
+        private void Pause_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                ServiceController service = new ServiceController("Служба интеграции");
+                if (service.Status == ServiceControllerStatus.Stopped)
+                {
+                    System.Windows.Forms.MessageBox.Show("Служба уже остановлена!");
+                }
+                else
+                {
+                    StopService("Служба интеграции");
+                    txtCurrentState.Text = "Текущее состояние службы:\n Служба приостановлена";
+                    txtCurrentState.Foreground = Brushes.Yellow;
+                    btnStart.IsEnabled = true;
+                    btnPause.IsEnabled = false;
+                    MessageBox.Show("Служба была успешно остановлена!");
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Служба не установлена");
+            }
+        }
+
+        private void Show_Click(object sender, EventArgs e)
+        {
+            this.WindowState = WindowState.Normal;
+            this.ShowInTaskbar = true;
+            this.Activate();
         }
     }
 }

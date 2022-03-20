@@ -8,6 +8,7 @@ namespace DataService
         public ProjectInstaller()
         {
             InitializeComponent();
+
         }
 
     }

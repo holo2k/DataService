@@ -15,6 +15,7 @@ using System.Linq;
 using System.Diagnostics;
 using System.Data.SqlClient;
 using System.Timers;
+using System.Data.Entity;
 
 namespace DataService
 {
@@ -42,6 +43,7 @@ namespace DataService
             this.CanPauseAndContinue = true;
             this.CanShutdown = true;
             this.AutoLog = true;
+           
             
             int frequency = 30000;
             _timer = new System.Timers.Timer(frequency) { AutoReset = true };
@@ -210,6 +212,7 @@ namespace DataService
                         //До сюда норм доходит
                         dataConnection.Close();
                         SqlConnection conn = new SqlConnection(@"Data Source=.\SQLEXPRESS;Initial Catalog=EquipmentTemperatures;" + "Integrated Security=true;");
+                        
                         conn.Open();
                         File.AppendAllText(@"C:\Users\nneke\Desktop\conninit.txt", conn.State + "\n");
                         SqlCommand cmdSelectTableNames = new SqlCommand("SELECT TABLE_NAME FROM EquipmentTemperatures.INFORMATION_SCHEMA.TABLES ORDER BY TABLE_NAME", conn);
