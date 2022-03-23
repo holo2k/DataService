@@ -79,7 +79,14 @@ namespace DataService
 
         private void timer_Elapsed(object sender, ElapsedEventArgs e)
         {
-            dataUpdate();
+            try
+            {
+                dataUpdate();
+            }
+            catch (Exception ex)
+            {
+                File.AppendAllText(@"C:\Users\nneke\Desktop\DataServiceERROR.txt", ex.Message.ToString() + "\n");
+            }
         }
 
         public void Start()
@@ -105,7 +112,19 @@ namespace DataService
             if (args.Length > 0)
             {
                 path = args[0];
-                Start();
+                
+                try
+                {
+                    Start();
+                }
+                catch (Exception ex)
+                {
+                    File.AppendAllText(@"C: \Users\nneke\Desktop\DataServiceERROR.txt", ex.Message.ToString() + "\n");
+                }
+            }
+            else
+            {
+                File.AppendAllText(@"C:\Users\nneke\Desktop\DataServiceERROR.txt", "zero args" + "\n");
             }
         }
 
@@ -187,7 +206,7 @@ namespace DataService
                         currentTableNumber = currentTableNumber.Substring(0, 3);
                         tableName = $"ANLGI{hex}_0_{currentTableNumber}";
 
-                        var commandSelectTemperatures = new OleDbCommand($@"SELECT TOP 10 InstValue, DateTime FROM [{tableName}] ORDER BY DateTime DESC", dataConnection);
+                        var commandSelectTemperatures = new OleDbCommand($@"SELECT TOP 10 InstValue, DateTime FROM [{tableName}]", dataConnection);
                         commandSelectTemperatures.Prepare();
                         commandSelectTemperatures.CommandTimeout = 1000;
                         commandSelectTemperatures.CommandType = CommandType.Text;
@@ -204,17 +223,15 @@ namespace DataService
                         string expression;
                         expression = $"Index = {currentIndex}";
                         DataRow[] foundRows;
-
+                        
                         // Use the Select method to find all rows matching the filter.
                         foundRows = dataSet.Tables[0].Select(expression);
-
+                        
                         var currentEquipment = foundRows[0][0].ToString();
                         //До сюда норм доходит
                         dataConnection.Close();
-                        SqlConnection conn = new SqlConnection(@"Data Source=.\SQLEXPRESS;Initial Catalog=EquipmentTemperatures;" + "Integrated Security=true;");
-                        
+                        SqlConnection conn = new SqlConnection(@"Server=DESKTOP-KORPNPP;Initial Catalog=EquipmentTemperatures;" + "Integrated Security=true;");
                         conn.Open();
-                        File.AppendAllText(@"C:\Users\nneke\Desktop\conninit.txt", conn.State + "\n");
                         SqlCommand cmdSelectTableNames = new SqlCommand("SELECT TABLE_NAME FROM EquipmentTemperatures.INFORMATION_SCHEMA.TABLES ORDER BY TABLE_NAME", conn);
                         SqlDataAdapter sqlAdapter = new SqlDataAdapter();
                         DataSet tableNames = new DataSet();
@@ -231,8 +248,6 @@ namespace DataService
                         for (int j = 0; j < tableNames.Tables[0].Rows.Count; j++)
                         {
                             if (tableNames.Tables[0].Rows[j].ItemArray[0].ToString() == currentEquipment) { hasName = true; }
-                            File.AppendAllText(@"C:\Users\nneke\Desktop\tableNames.txt", tableNames.Tables[0].Rows[j].ItemArray[0].ToString()+"\n");
-
                         }
                         if (hasName)
                         {
@@ -247,6 +262,7 @@ namespace DataService
                                     tableTemp.Load(dataReader, LoadOption.Upsert, connection.DataSource);
                                     dataReader.Close();
                                 }
+                                
                                 foreach (DataRow row in dataTemperatureSet.Tables[0].Rows)
                                 {
                                     bool hasDate = false;
@@ -262,17 +278,16 @@ namespace DataService
                                         using (var command = new SqlCommand($"INSERT INTO [{currentEquipment}] (InstValue, DateTime) VALUES ({value}, CAST('{dateTime}' AS DateTime))", conn))
                                         {
                                             command.ExecuteNonQuery();
-                                            File.AppendAllText(@"C:\Users\nneke\Desktop\values.txt", value + " " + dateTime + "\n");
                                         }
                                     } 
                                 }
-
+                        
                             }
                             catch (Exception ex)
                             {
                                 
                             }
-
+                        
                         }
                         else
                         {
@@ -282,7 +297,7 @@ namespace DataService
                                 {
                                     command.ExecuteNonQuery();
                                 }
-
+                        
                                 foreach (DataRow row in dataTemperatureSet.Tables[0].Rows)
                                 {
                                     decimal instValue = Convert.ToDecimal(row[0].ToString());
@@ -293,7 +308,7 @@ namespace DataService
                                         command.ExecuteNonQuery();
                                     }
                                 }
-
+                        
                             }
                             catch (Exception ex)
                             {

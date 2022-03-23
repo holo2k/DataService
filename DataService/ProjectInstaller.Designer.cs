@@ -29,15 +29,14 @@ namespace DataService
         /// </summary>
         private void InitializeComponent()
         {
-            System.ServiceProcess.ServiceProcessInstaller serviceProcessInstaller1;
+            this.serviceProcessInstaller1 = new System.ServiceProcess.ServiceProcessInstaller();
             this.serviceInstaller1 = new System.ServiceProcess.ServiceInstaller();
-            serviceProcessInstaller1 = new System.ServiceProcess.ServiceProcessInstaller();
             // 
             // serviceProcessInstaller1
             // 
-            serviceProcessInstaller1.Account = System.ServiceProcess.ServiceAccount.NetworkService;
-            serviceProcessInstaller1.Password = "";
-            serviceProcessInstaller1.Username = "DESKTOP-KORPNPP\\DataService";
+            this.serviceProcessInstaller1.Account = System.ServiceProcess.ServiceAccount.NetworkService;
+            this.serviceProcessInstaller1.Password = "";
+            this.serviceProcessInstaller1.Username = "DESKTOP-KORPNPP\\DataService";
             // 
             // serviceInstaller1
             // 
@@ -50,11 +49,12 @@ namespace DataService
             // 
             this.Installers.AddRange(new System.Configuration.Install.Installer[] {
             this.serviceInstaller1,
-            serviceProcessInstaller1});
+            this.serviceProcessInstaller1});
 
         }
 
         #endregion
         public System.ServiceProcess.ServiceInstaller serviceInstaller1;
+        private System.ServiceProcess.ServiceProcessInstaller serviceProcessInstaller1;
     }
 }
