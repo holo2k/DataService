@@ -40,7 +40,7 @@ namespace DataServiceApp
         System.Windows.Forms.NotifyIcon icon = new System.Windows.Forms.NotifyIcon();
         System.Windows.Forms.ContextMenu m_menu = new System.Windows.Forms.ContextMenu();
 
-        static string[] path = new string[1];
+        static string[] path = new string[2];
 
         public MainWindow()
         {
@@ -59,15 +59,19 @@ namespace DataServiceApp
                 new System.Windows.Forms.MenuItem("Выход", new System.EventHandler(Exit_Click)));
             icon.ContextMenu = m_menu;
             icon.Visible = true;
+            this.ShowInTaskbar = false;
 
             //Открытие последнего путя до папки с таблицами
             try
             {
                 StreamReader sr = new StreamReader("DatabasePath");
+                StreamReader srf = new StreamReader("Frequency");
                 path[0] = sr.ReadLine();
+                path[1] = srf.ReadLine();
                 sr.Close();
                 sr.Dispose();
                 tbPath.Text = path[0];
+                tbFreq.Text = path[1];
             }
             catch(Exception ex)
             {
@@ -126,53 +130,6 @@ namespace DataServiceApp
             return pathToFolder;
         }
 
-        //Обновление данных
-        public void dataUpdate()
-        {
-            connection = new OleDbConnection();
-            connection = OpenConnection(connection, path[0]);
-            try
-            {
-                //Получение таблицы с именами и индексами оборудования
-                dataSet.Reset();
-                var commandSelectUnits = new OleDbCommand("SELECT UnitName,Index FROM DBMAIN", connection);
-                dataAdapter.SelectCommand = commandSelectUnits;
-                using (OleDbDataReader dataReader = commandSelectUnits.ExecuteReader())
-                {
-                    dataSet.Load(dataReader, LoadOption.Upsert, connection.DataSource);
-                    dataReader.Close();
-                }
-                dataAdapter.Fill(dataSet);
-                //Декодирование
-                for (int j = 0; j < dataSet.Tables[0].Rows.Count; j++)
-                {
-                    String stringField = dataSet.Tables[0].Rows[j].ItemArray[0].ToString();
-                    Encoding enc = Encoding.GetEncoding(1252);
-                    Encoding enc2 = Encoding.GetEncoding(1251);
-                    string result = enc2.GetString(enc.GetBytes(stringField));
-                    dataSet.Tables[0].Rows[j].BeginEdit();
-                    dataSet.Tables[0].Rows[j][0] = result;
-                    dataSet.Tables[0].Rows[j].EndEdit();
-                    dataSet.Tables[0].Rows[j].AcceptChanges();
-                    dataSet.AcceptChanges();
-                }
-                dataAdapter.Dispose();
-                connection.Close();
-                string pathFolder = "";
-                dataTemperatureSet.Reset();
-                dgUnits.ItemsSource = dataSet.Tables[0].DefaultView;
-            }
-            //}
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message.ToString());
-            }
-
-            GC.Collect();
-            dataConnection.Close();
-        
-
-        }
 
         //Подсоединение к базе
         private OleDbConnection OpenConnection(OleDbConnection connection, string _path)
@@ -227,7 +184,6 @@ namespace DataServiceApp
                     indexes.Clear();
                     File.WriteAllText("DatabasePath", path[0]);
                     StopService("Служба интеграции");
-                    dataUpdate();
                     GC.Collect();
                     txtCurrentState.Text = "Текущее состояние службы:\n Служба приостановлена";
                     txtCurrentState.Foreground = Brushes.Yellow;
@@ -254,7 +210,6 @@ namespace DataServiceApp
                         indexes.Clear();
                         File.WriteAllText("DatabasePath", path[0]);
                         StopService("Служба интеграции");
-                        dataUpdate();
                         GC.Collect();
                         txtCurrentState.Text = "Текущее состояние службы:\n Служба приостановлена";
                         txtCurrentState.Foreground = Brushes.Yellow;
@@ -270,19 +225,76 @@ namespace DataServiceApp
 
         }
 
+        //Запись частоты обновления в файл
+        private void btnApplyFreq_Click(object sender, RoutedEventArgs e)
+        {
+            ServiceController service = new ServiceController("Служба интеграции");
+            if (service.Status != ServiceControllerStatus.Running)
+            {
+                try
+                {
+                    path[1] = tbFreq.Text;
+                    if (connection != null)
+                    {
+                        connection.Close();
+                    }
+                    dataTables.Clear();
+                    indexes.Clear();
+                    File.WriteAllText("Frequency", path[1]);
+                    StopService("Служба интеграции");
+                    GC.Collect();
+                    txtCurrentState.Text = "Текущее состояние службы:\n Служба приостановлена";
+                    txtCurrentState.Foreground = Brushes.Yellow;
+                    btnStart.IsEnabled = true;
+                    btnPause.IsEnabled = false;
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Возникла ошибка, возможно, вы ввели неподходящие данные. \nПодробно:\n" + ex.Message.ToString());
+                }
+            }
+            else
+            {
+                if (MessageBox.Show("Чтобы выбрать новую частоту, необходимо остановить службу. Остановить службу и поменять частоту?", "Предупреждение", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+                {
+                    try
+                    {
+                        path[1] = tbFreq.Text;
+                        if (connection != null)
+                        {
+                            connection.Close();
+                        }
+                        dataTables.Clear();
+                        indexes.Clear();
+                        File.WriteAllText("Frequency", path[1]);
+                        StopService("Служба интеграции");
+                        GC.Collect();
+                        txtCurrentState.Text = "Текущее состояние службы:\n Служба приостановлена";
+                        txtCurrentState.Foreground = Brushes.Yellow;
+                        btnStart.IsEnabled = true;
+                        btnPause.IsEnabled = false;
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("Возникла ошибка, возможно, вы ввели неподходящие данные. \nПодробно:\n" + ex.Message.ToString());
+                    }
+                }
+            }
+        }
+
         //Установка службы
         private void btnInstall_Click(object sender, RoutedEventArgs e)
         {
             ServiceController service = new ServiceController("Служба интеграции");
-            //try
-           // {
+            try
+            {
                 ManagedInstallerClass.InstallHelper(new[] {@"/", openFile.FileName });
-            //}
-           // catch (Exception ex)
-           // {
-               // MessageBox.Show(ex.Message.ToString());
-                //return;
-            //}
+            }
+           catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message.ToString());
+                return;
+            }
             MessageBox.Show("Установка службы выполнена!");
             txtCurrentState.Text = "Текущее состояние службы:\n Служба приостановлена";
             txtCurrentState.Foreground = Brushes.Yellow;
@@ -433,22 +445,12 @@ namespace DataServiceApp
             }
         }
 
-        private void Window_Loaded(object sender, RoutedEventArgs e)
-        {
-            dataUpdate();
-        }
-
-        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
-        {
-            StopService("Служба интеграции");
-        }
-
         private void Icon_Click(object sender, EventArgs e)
         {
             if (this.WindowState == WindowState.Minimized)
             {
                 this.WindowState = WindowState.Normal;
-                this.ShowInTaskbar = true;
+                this.ShowInTaskbar = false;
                 this.Activate();
             }
         }
@@ -463,13 +465,26 @@ namespace DataServiceApp
 
         private void Exit_Click(object sender, EventArgs e)
         {
-            this.Close();
+            ServiceController service = new ServiceController("Служба интеграции");
+            if (service.Status != ServiceControllerStatus.Running)
+            {
+                Environment.Exit(1);
+            }
+            else
+            {
+                if (MessageBox.Show("При выходе из программы, служба автоматически прекратит свою работу! Вы уверены, что хотите выйти?", "Предупреждение", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+                {
+                    StopService("Служба интеграции");
+                    Environment.Exit(1);
+                }
+            }
+            
         }
 
         private void Settings_Click(object sender, EventArgs e)
         {
             this.WindowState = WindowState.Normal;
-            this.ShowInTaskbar = true;
+            this.ShowInTaskbar = false;
             this.Activate();
             stateSettingsTab.IsSelected = true;
             
@@ -534,6 +549,22 @@ namespace DataServiceApp
             this.WindowState = WindowState.Normal;
             this.ShowInTaskbar = true;
             this.Activate();
+        }
+
+        private void Window_Closed(object sender, EventArgs e)
+        {
+            StopService("Служба интеграции");
+        }
+
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            e.Cancel = true;
+            this.WindowState = WindowState.Minimized;
         }
     }
 }

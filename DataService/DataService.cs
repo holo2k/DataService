@@ -34,8 +34,9 @@ namespace DataService
         static EventLog myLog;
         public string tableName = "";
         private int currentIndex = 0;
-        private readonly System.Timers.Timer _timer;
+        private System.Timers.Timer _timer;
         public string path { get; set; }
+        public int frequency { get; set; } = 1800000;
         public DataService()
         {
             InitializeComponent();
@@ -43,12 +44,6 @@ namespace DataService
             this.CanPauseAndContinue = true;
             this.CanShutdown = true;
             this.AutoLog = true;
-           
-            
-            int frequency = 30000;
-            _timer = new System.Timers.Timer(frequency) { AutoReset = true };
-            _timer.Elapsed += timer_Elapsed;
-
         }
 
         public enum ServiceState
@@ -109,22 +104,25 @@ namespace DataService
             // Update the service state to Running.
             serviceStatus.dwCurrentState = ServiceState.SERVICE_RUNNING;
             SetServiceStatus(this.ServiceHandle, ref serviceStatus);
-            if (args.Length > 0)
+            if (args.Length ==2)
             {
                 path = args[0];
-                
+                frequency = Int32.Parse(args[1]);
+                frequency = frequency * 60 * 1000;
+                _timer = new System.Timers.Timer(frequency) { AutoReset = true };
+                _timer.Elapsed += timer_Elapsed;
                 try
                 {
                     Start();
                 }
                 catch (Exception ex)
                 {
-                    File.AppendAllText(@"C: \Users\nneke\Desktop\DataServiceERROR.txt", ex.Message.ToString() + "\n");
+                    File.AppendAllText(@"C:\Users\nneke\Desktop\DataServiceERROR.txt", ex.Message.ToString() + "\n");
                 }
             }
             else
             {
-                File.AppendAllText(@"C:\Users\nneke\Desktop\DataServiceERROR.txt", "zero args" + "\n");
+                File.AppendAllText(@"C:\Users\nneke\Desktop\DataServiceERROR.txt", "При запуске службы не было передано аргументов." + "\n");
             }
         }
 
@@ -205,10 +203,9 @@ namespace DataService
                         string currentTableNumber = currentTable.Substring(currentTable.Length - 6);
                         currentTableNumber = currentTableNumber.Substring(0, 3);
                         tableName = $"ANLGI{hex}_0_{currentTableNumber}";
-
-                        var commandSelectTemperatures = new OleDbCommand($@"SELECT TOP 10 InstValue, DateTime FROM [{tableName}]", dataConnection);
+                        File.AppendAllText(@"C:\Users\nneke\Desktop\tableName.txt", tableName + "\n");
+                        var commandSelectTemperatures = new OleDbCommand($@"SELECT TOP 10000 InstValue, DateTime FROM [{tableName}] ORDER BY DateTime DESC", dataConnection);
                         commandSelectTemperatures.Prepare();
-                        commandSelectTemperatures.CommandTimeout = 1000;
                         commandSelectTemperatures.CommandType = CommandType.Text;
                         dataTemperatureAdapter.SelectCommand = commandSelectTemperatures;
 

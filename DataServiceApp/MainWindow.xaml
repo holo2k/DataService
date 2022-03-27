@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:DataServiceApp"
         mc:Ignorable="d"
-        Title="Главное окно" Height="450" Width="390.909" ResizeMode="CanMinimize" WindowStartupLocation="CenterScreen" Loaded="Window_Loaded" Closing="Window_Closing" Deactivated="Window_Deactivated" >
+        Title="Главное окно" Height="450" Width="390.909" ResizeMode="CanMinimize" WindowStartupLocation="CenterScreen" Loaded="Window_Loaded" Closing="Window_Closing" Deactivated="Window_Deactivated" Closed="Window_Closed" >
     <Grid>
         <TabControl>
             <TabItem x:Name="stateRecyclerTab">
@@ -13,14 +13,22 @@
                     <TextBlock Text="Управление"></TextBlock>
                 </TabItem.Header>
                 <TabItem.Content>
-                    <Grid Background="LightSkyBlue">
+                    <Grid Background="#FF91C4DE">
                         <StackPanel>
-                            <Button x:Name="btnInstall" Content="Установить"  Click="btnInstall_Click" ></Button>
-                            <Button x:Name="btnStart" Content="Запустить"  Click="btnStart_Click"/>
-                            <Button x:Name="btnReStart" Content="Перезапустить"  Click="btnReStart_Click"/>
-                            <Button x:Name="btnPause" Content="Приостановить"  Click="btnPause_Click"/>
-                            <Button x:Name="btnDelete" Content="Удалить"  Click="btnDelete_Click"/>
-                            <TextBlock x:Name="txtCurrentState" Text="Текущее состояние службы: " HorizontalAlignment="Center" Margin="0,70,0,0" FontSize="14" TextAlignment="Center"></TextBlock>
+                            <GroupBox Header="Инсталляция" Margin="10">
+                                <StackPanel>
+                                    <Button x:Name="btnInstall" Content="Установить"  Click="btnInstall_Click" ></Button>
+                                    <Button x:Name="btnDelete" Content="Удалить"  Click="btnDelete_Click"/>
+                                </StackPanel>
+                            </GroupBox>
+                            <GroupBox Header="Запуск" Margin="10">
+                                <StackPanel>
+                                    <Button x:Name="btnStart" Content="Запустить"  Click="btnStart_Click"/>
+                                    <Button x:Name="btnReStart" Content="Перезапустить"  Click="btnReStart_Click"/>
+                                    <Button x:Name="btnPause" Content="Приостановить"  Click="btnPause_Click"/>
+                                </StackPanel>
+                            </GroupBox>
+                            <TextBlock x:Name="txtCurrentState" Text="Текущее состояние службы: " HorizontalAlignment="Center"  FontSize="14" Margin="0,20,0,0" TextAlignment="Center"/>
                         </StackPanel>
                     </Grid>
                 </TabItem.Content>
@@ -29,7 +37,7 @@
                 <TabItem.Header>
                     <TextBlock Text="Настройки"></TextBlock>
                 </TabItem.Header>
-                <Grid >
+                <Grid Background="#FF91C4DE" >
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="176*"/>
                         <ColumnDefinition Width="203*"/>
@@ -41,17 +49,22 @@
                         <RowDefinition Height="227*"/>
                         <RowDefinition Height="28*"/>
                     </Grid.RowDefinitions>
-                    <Label Content="*Путь к базе данных:" Margin="10,0,193,0" FontSize="15" Grid.ColumnSpan="2"/>
-                    <TextBox x:Name="tbPath" Margin="10,5,122,22" Grid.Row="1" Grid.ColumnSpan="2"/>
-                    <Button x:Name="btnApply" Width="100" HorizontalAlignment="Left" Content="Применить" Margin="10,48,0,0" Grid.Row="1" Height="28" VerticalAlignment="Top" Click="btnApply_Click" Grid.RowSpan="2"></Button>
-                    <Button x:Name="btnSelect" Width="100" HorizontalAlignment="Left" Content="Выбор.." Margin="93,5,0,22" Grid.Row="1" Grid.Column="1" Height="Auto" Click="btnSelect_Click"/>
-                    <DataGrid AutoGenerateColumns="False" x:Name="dgUnits" Grid.ColumnSpan="2" Grid.Row="3" Margin="5,110,5,15">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="UnitName" Binding="{Binding UnitName}" Width="*"></DataGridTextColumn>
-                            <DataGridTextColumn Header="Index" Binding="{Binding Index}" Width="*"></DataGridTextColumn>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                    <Label Content="*Указывать папку, а не .bd файл" FontSize="15" Height="33" Grid.ColumnSpan="2" Margin="5,217,10,5" Grid.Row="3" Grid.RowSpan="2"/>
+                    <GroupBox Header="*Путь к базе данных:" Grid.ColumnSpan="2" FontSize="15" Grid.RowSpan="4" Margin="10,30,10,191">
+                        <Grid>
+                            <TextBox x:Name="tbPath" Margin="10,10,10,72"/>
+                            <Button x:Name="btnApply" Width="100" HorizontalAlignment="Right" Content="Применить" Height="Auto" Click="btnApply_Click" Margin="0,60,10,10" RenderTransformOrigin="0.46,0.189"/>
+                            <Button x:Name="btnSelect" Width="100" HorizontalAlignment="Left" Content="Выбор.." Height="Auto"  Click="btnSelect_Click" Margin="10,60,0,10"/>
+                        </Grid>
+                    </GroupBox>
+
+                    <Label Content="*Указывать папку, а не .bd файл" FontSize="15" Height="33" Grid.ColumnSpan="2" Margin="10,212,5,10" Grid.Row="3" Grid.RowSpan="2"/>
+                    <GroupBox Header="Частота обновления (в минутах)" FontSize="15" Grid.ColumnSpan="2" Margin="10,73,96,33" Grid.Row="3">
+                        <Grid>
+                            <TextBox x:Name="tbFreq" Margin="10,10,90,50"/>
+                            <Button x:Name="btnApplyFreq" Width="100" HorizontalAlignment="Left" Content="Применить" Margin="10,49,0,0" Height="38" VerticalAlignment="Top" Click="btnApplyFreq_Click"/>
+                        </Grid>
+                    </GroupBox>
+
                 </Grid>
 
             </TabItem>
