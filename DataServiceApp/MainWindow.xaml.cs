@@ -417,12 +417,21 @@ namespace DataServiceApp
 
         private void btnStart_Click(object sender, RoutedEventArgs e)
         {
-            StartService("Служба интеграции");
-            txtCurrentState.Text = "Текущее состояние службы:\n Служба запущена";
-            txtCurrentState.Foreground = Brushes.Green;
-            btnStart.IsEnabled = false;
-            btnPause.IsEnabled = true;
-            MessageBox.Show("Служба была успешно запущена!");
+            try
+            {
+                StartService("Служба интеграции");
+                txtCurrentState.Text = "Текущее состояние службы:\n Служба запущена";
+                txtCurrentState.Foreground = Brushes.Green;
+                btnStart.IsEnabled = false;
+                btnPause.IsEnabled = true;
+                MessageBox.Show("Служба была успешно запущена!");
+            }
+            catch
+            {
+                MessageBox.Show("Возникла ошибка. Возможно, вы не указали параметры запуска либо служба не установлена на компьютере.");
+                Environment.Exit(1);
+            }
+            
         }
 
         private void btnPause_Click(object sender, RoutedEventArgs e)

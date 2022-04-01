@@ -203,7 +203,6 @@ namespace DataService
                         string currentTableNumber = currentTable.Substring(currentTable.Length - 6);
                         currentTableNumber = currentTableNumber.Substring(0, 3);
                         tableName = $"ANLGI{hex}_0_{currentTableNumber}";
-                        File.AppendAllText(@"C:\Users\nneke\Desktop\tableName.txt", tableName + "\n");
                         var commandSelectTemperatures = new OleDbCommand($@"SELECT TOP 10000 InstValue, DateTime FROM [{tableName}] ORDER BY DateTime DESC", dataConnection);
                         commandSelectTemperatures.Prepare();
                         commandSelectTemperatures.CommandType = CommandType.Text;
