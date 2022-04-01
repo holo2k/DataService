@@ -127,14 +127,29 @@ namespace DataServiceApp
             }
             if (serviceStart)
             {
-                try
-                {
-                    StartService("Служба интеграции");
-                }
-                catch
-                {
-                    MessageBox.Show("Возникла ошибка при запуске службы. Проверьте параметры запуска.");
-                }
+
+               if ((tbFreq.Text.Length > 0) && (tbPath.Text.Length > 0))
+               {
+                   try
+                   {
+                       StartService("Служба интеграции");
+                       txtCurrentState.Text = "Текущее состояние службы:\n Служба запущена";
+                       txtCurrentState.Foreground = Brushes.Green;
+                       btnStart.IsEnabled = false;
+                       btnPause.IsEnabled = true;
+                       MessageBox.Show("Служба была успешно запущена!");
+                   }
+                   catch
+                   {
+                       MessageBox.Show("Возникла ошибка. Возможно, вы не указали параметры запуска либо служба не установлена на компьютере.");
+                       Environment.Exit(1);
+                   }
+               }
+               else
+               {
+                   MessageBox.Show("Заполните параметры запуска!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+               }
+
             }
             openFile.FileName = "../../../DataService/bin/Debug/DataService.exe";
             var serviceExists = ServiceController.GetServices().Any(s => s.DisplayName == "Служба интеграции");
@@ -266,6 +281,7 @@ namespace DataServiceApp
                     txtCurrentState.Foreground = Brushes.Yellow;
                     btnStart.IsEnabled = true;
                     btnPause.IsEnabled = false;
+                    MessageBox.Show("Применено!");
                 }
                 catch (Exception ex)
                 {
@@ -292,6 +308,7 @@ namespace DataServiceApp
                         txtCurrentState.Foreground = Brushes.Yellow;
                         btnStart.IsEnabled = true;
                         btnPause.IsEnabled = false;
+                        MessageBox.Show("Применено!");
                     }
                     catch (Exception ex)
                     {
@@ -324,6 +341,7 @@ namespace DataServiceApp
                     txtCurrentState.Foreground = Brushes.Yellow;
                     btnStart.IsEnabled = true;
                     btnPause.IsEnabled = false;
+                    MessageBox.Show("Применено!");
                 }
                 catch (Exception ex)
                 {
@@ -350,6 +368,7 @@ namespace DataServiceApp
                         txtCurrentState.Foreground = Brushes.Yellow;
                         btnStart.IsEnabled = true;
                         btnPause.IsEnabled = false;
+                        MessageBox.Show("Применено!");
                     }
                     catch (Exception ex)
                     {
@@ -417,21 +436,29 @@ namespace DataServiceApp
 
         private void btnStart_Click(object sender, RoutedEventArgs e)
         {
-            try
+            if ((tbFreq.Text.Length > 0) && (tbPath.Text.Length > 0))
             {
-                StartService("Служба интеграции");
-                txtCurrentState.Text = "Текущее состояние службы:\n Служба запущена";
-                txtCurrentState.Foreground = Brushes.Green;
-                btnStart.IsEnabled = false;
-                btnPause.IsEnabled = true;
-                MessageBox.Show("Служба была успешно запущена!");
+                try
+                {
+                    StartService("Служба интеграции");
+                    txtCurrentState.Text = "Текущее состояние службы:\n Служба запущена";
+                    txtCurrentState.Foreground = Brushes.Green;
+                    btnStart.IsEnabled = false;
+                    btnPause.IsEnabled = true;
+                    MessageBox.Show("Служба была успешно запущена!");
+                }
+                catch
+                {
+                    MessageBox.Show("Возникла ошибка. Возможно, вы не указали параметры запуска либо служба не установлена на компьютере.");
+                    Environment.Exit(1);
+                }
             }
-            catch
+            else
             {
-                MessageBox.Show("Возникла ошибка. Возможно, вы не указали параметры запуска либо служба не установлена на компьютере.");
-                Environment.Exit(1);
+                MessageBox.Show("Заполните параметры запуска!","Ошибка",MessageBoxButton.OK,MessageBoxImage.Error);
             }
-            
+           
+
         }
 
         private void btnPause_Click(object sender, RoutedEventArgs e)
