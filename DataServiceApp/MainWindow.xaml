@@ -1,0 +1,110 @@
+﻿<Window x:Class="DataServiceApp.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:DataServiceApp"
+        mc:Ignorable="d"
+        Title="Главное окно" Height="394" Width="665.909" ResizeMode="CanMinimize" WindowStartupLocation="CenterScreen" Loaded="Window_Loaded" Closing="Window_Closing" Deactivated="Window_Deactivated" Closed="Window_Closed" >
+    <Grid>
+        <TabControl>
+            <TabItem x:Name="stateRecyclerTab">
+                <TabItem.Header>
+                    <TextBlock Text="Управление"></TextBlock>
+                </TabItem.Header>
+                <TabItem.Content>
+                    <Grid Background="#FF91C4DE">
+                        <StackPanel>
+                            <GroupBox Header="Инсталляция" Margin="10">
+                                <StackPanel>
+                                    <Button x:Name="btnInstall" Content="Установить"  Click="btnInstall_Click" ></Button>
+                                    <Button x:Name="btnDelete" Content="Удалить"  Click="btnDelete_Click"/>
+                                </StackPanel>
+                            </GroupBox>
+                            <GroupBox Header="Запуск" Margin="10">
+                                <StackPanel>
+                                    <Button x:Name="btnStart" Content="Запустить"  Click="btnStart_Click"/>
+                                    <Button x:Name="btnReStart" Content="Перезапустить"  Click="btnReStart_Click"/>
+                                    <Button x:Name="btnPause" Content="Приостановить"  Click="btnPause_Click"/>
+                                </StackPanel>
+                            </GroupBox>
+                            <TextBlock x:Name="txtCurrentState" Text="Текущее состояние службы: " HorizontalAlignment="Center"  FontSize="14" Margin="10,0" TextAlignment="Center" Width="634" Height="48"/>
+                        </StackPanel>
+                    </Grid>
+                </TabItem.Content>
+            </TabItem>
+            <TabItem x:Name="stateSettingsTab">
+                <TabItem.Header>
+                    <TextBlock Text="Параметры запуска"></TextBlock>
+                </TabItem.Header>
+                <Grid Background="#FF91C4DE" >
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="176*"/>
+                        <ColumnDefinition Width="203*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="33*"/>
+                        <RowDefinition Height="58*"/>
+                        <RowDefinition Height="47*"/>
+                        <RowDefinition Height="227*"/>
+                        <RowDefinition Height="28*"/>
+                    </Grid.RowDefinitions>
+                    <GroupBox Header="*Путь к локальной базе данных:" Grid.ColumnSpan="2" FontSize="15" Grid.RowSpan="4" Margin="10,10,339,172">
+                        <Grid>
+                            <TextBox x:Name="tbPath" Margin="10,10,10,57"/>
+                            <Button x:Name="btnApply" Width="100" HorizontalAlignment="Right" Content="Применить" Height="Auto" Click="btnApply_Click" Margin="0,60,10,10" RenderTransformOrigin="0.46,0.189"/>
+                            <Button x:Name="btnSelect" Width="100" HorizontalAlignment="Left" Content="Выбор.." Height="Auto"  Click="btnSelect_Click" Margin="10,60,0,10"/>
+                        </Grid>
+                    </GroupBox>
+
+                    <Label Content="*Указывать папку, а не .bd файл" FontSize="15" Height="33" Grid.ColumnSpan="2" Margin="15,174,0,12" Grid.Row="3" Grid.RowSpan="2"/>
+                    <GroupBox Header="Частота обновления (в минутах)" FontSize="15" Margin="10,28,339,55" Grid.Row="3" Grid.ColumnSpan="2">
+                        <Grid>
+                            <TextBox x:Name="tbFreq" Margin="10,26,169,26"/>
+                            <Button x:Name="btnApplyFreq" Width="138" HorizontalAlignment="Left" Content="Применить" Margin="145,26,0,0" Height="33" VerticalAlignment="Top" Click="btnApplyFreq_Click"/>
+                        </Grid>
+                    </GroupBox>
+                    <GroupBox Header="Путь к базе данных SQL:" FontSize="15" Margin="31,10,10,10" Grid.Column="1" Grid.RowSpan="5">
+                        <Grid Margin="0,5,0,-5">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="69*"/>
+                                <RowDefinition Height="65*"/>
+                                <RowDefinition Height="66*"/>
+                                <RowDefinition Height="45*"/>
+                                <RowDefinition Height="45*"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="134*"/>
+                                <ColumnDefinition Width="163*"/>
+                            </Grid.ColumnDefinitions>
+                            <Label Content="Имя сервера" Margin="10,0,13,30"></Label>
+                            <TextBox x:Name="tbServerName" Margin="10,32,10,5" Grid.ColumnSpan="2"/>
+                            <Label Content="Имя базы данных" Margin="7,0,-7,21" Grid.ColumnSpan="2" Grid.Row="1"/>
+                            <TextBox x:Name="tbBaseName" Margin="10,28,10,5" Grid.ColumnSpan="2" Grid.Row="1"/>
+                            <Label Content="Логин" Margin="7,0,28,33" Grid.Row="2"/>
+                            <TextBox x:Name="tbLogin" Margin="10,30,17,3" Grid.Row="2"/>
+                            <Button x:Name="btnApplySql" Width="100" HorizontalAlignment="Right" Content="Применить" Height="Auto"  Margin="0,5,111,5" RenderTransformOrigin="0.46,0.189" Click="btnApplySql_Click" Grid.ColumnSpan="2" Grid.Row="4"/>
+                            <Label Content="Пароль" Margin="6,0,4,33" Grid.Column="1" Grid.Row="2"/>
+                            <TextBox x:Name="tbPassword" Margin="10,30,10,4" Grid.Column="1" Grid.Row="2"/>
+                            <CheckBox x:Name="cbLocalBd" Content ="Локальная база данных" Margin="10" Grid.Row="3" Grid.ColumnSpan="2" Checked="CheckBox_Checked" Unchecked="CheckBox_Unchecked"/>
+                        </Grid>
+                    </GroupBox>
+
+                </Grid>
+
+            </TabItem>
+            <TabItem x:Name="tiSettings">
+                <TabItem.Header>
+                    <TextBlock Text="Настройки"></TextBlock>
+                </TabItem.Header>
+                <StackPanel>
+                    <CheckBox x:Name="cbAppWindows" Content="Включать при запуске Windows"  Margin="10,10,0,10" FontSize="14" Checked="cbAppWindows_Checked" Unchecked="cbAppWindows_Unchecked"/>
+                    <CheckBox x:Name="cbServiceStart" Content="Автоматический запуск службы"  Margin="10,10,0,10" FontSize="14" Checked="cbServiceStart_Checked" Unchecked="cbServiceStart_Unchecked"/>
+                    <CheckBox x:Name="cbTrayMinimize" Content="Сворачивать в трей"  Margin="10,10,0,10" FontSize="14" Checked="cbTrayMinimize_Checked" Unchecked="cbTrayMinimize_Unchecked"/>
+                </StackPanel>
+
+            </TabItem>
+        </TabControl>
+
+    </Grid>
+</Window>
