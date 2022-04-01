@@ -35,7 +35,7 @@
             </TabItem>
             <TabItem x:Name="stateSettingsTab">
                 <TabItem.Header>
-                    <TextBlock Text="Настройки"></TextBlock>
+                    <TextBlock Text="Параметры запуска"></TextBlock>
                 </TabItem.Header>
                 <Grid Background="#FF91C4DE" >
                     <Grid.ColumnDefinitions>
@@ -68,7 +68,17 @@
                 </Grid>
 
             </TabItem>
-
+            <TabItem x:Name="tiSettings">
+                <TabItem.Header>
+                    <TextBlock Text="Настройки"></TextBlock>
+                </TabItem.Header>
+                <StackPanel>
+                    <CheckBox x:Name="cbAppWindows" Content="Включать при запуске Windows"  Margin="10,10,0,10" FontSize="14" Checked="cbAppWindows_Checked" Unchecked="cbAppWindows_Unchecked"/>
+                    <CheckBox x:Name="cbServiceStart" Content="Автоматический запуск службы"  Margin="10,10,0,10" FontSize="14" Checked="cbServiceStart_Checked" Unchecked="cbServiceStart_Unchecked"/>
+                    <CheckBox x:Name="cbTrayMinimize" Content="Сворачивать в трей"  Margin="10,10,0,10" FontSize="14" Checked="cbTrayMinimize_Checked" Unchecked="cbTrayMinimize_Unchecked"/>
+                </StackPanel>
+                
+            </TabItem>
         </TabControl>
 
     </Grid>

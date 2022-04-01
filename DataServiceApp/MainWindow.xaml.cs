@@ -16,7 +16,7 @@ using System.IO.MemoryMappedFiles;
 using System.Data.SqlClient;
 using System.Data.Linq.SqlClient;
 using System.Globalization;
-using Topshelf;
+using Microsoft.Win32;
 
 namespace DataServiceApp
 {
@@ -39,12 +39,16 @@ namespace DataServiceApp
         private int currentIndex = 0;
         System.Windows.Forms.NotifyIcon icon = new System.Windows.Forms.NotifyIcon();
         System.Windows.Forms.ContextMenu m_menu = new System.Windows.Forms.ContextMenu();
+        bool windowsStart = false;
+        bool serviceStart = false;
+        bool trayMinimize = false;
 
         static string[] path = new string[2];
 
         public MainWindow()
         {
             InitializeComponent();
+
             icon.Icon = new System.Drawing.Icon("kumz.ico");
             icon.Click += Icon_Click;
             m_menu.MenuItems.Add(0,
@@ -54,12 +58,13 @@ namespace DataServiceApp
             m_menu.MenuItems.Add(2,
                 new System.Windows.Forms.MenuItem("Остановить службу", new System.EventHandler(Pause_Click)));
             m_menu.MenuItems.Add(3,
-                new System.Windows.Forms.MenuItem("Настройки", new System.EventHandler(Settings_Click)));
+                new System.Windows.Forms.MenuItem("Параметры запуска", new System.EventHandler(Settings_Click)));
             m_menu.MenuItems.Add(4,
                 new System.Windows.Forms.MenuItem("Выход", new System.EventHandler(Exit_Click)));
             icon.ContextMenu = m_menu;
-            icon.Visible = true;
-            this.ShowInTaskbar = false;
+            this.ShowInTaskbar = true;
+
+
 
             //Открытие последнего путя до папки с таблицами
             try
@@ -69,6 +74,8 @@ namespace DataServiceApp
                 path[0] = sr.ReadLine();
                 path[1] = srf.ReadLine();
                 sr.Close();
+                srf.Close();
+                srf.Dispose();
                 sr.Dispose();
                 tbPath.Text = path[0];
                 tbFreq.Text = path[1];
@@ -78,6 +85,57 @@ namespace DataServiceApp
 
             }
 
+            try
+            {
+                StreamReader srTray = new StreamReader("trayMinimize");
+                StreamReader srServicestart = new StreamReader("serviceStart");
+                StreamReader srWindowsstart = new StreamReader("windowsStart");
+                trayMinimize = Convert.ToBoolean(srTray.ReadLine());
+                serviceStart = Convert.ToBoolean(srServicestart.ReadLine());
+                windowsStart = Convert.ToBoolean(srWindowsstart.ReadLine());
+                srTray.Close();
+                srServicestart.Close();
+                srWindowsstart.Close();
+                srTray.Dispose();
+                srServicestart.Dispose();
+                srWindowsstart.Dispose();
+                cbTrayMinimize.IsChecked = trayMinimize;
+                cbServiceStart.IsChecked = serviceStart;
+                cbAppWindows.IsChecked = windowsStart;
+            }
+            catch
+            {
+
+            }
+
+            if (trayMinimize)
+            {
+                icon.Visible = true;
+            }
+            else
+            {
+                icon.Visible = false;
+            }
+
+            if (windowsStart)
+            {
+                SetAutorunValue(true);
+            }
+            else
+            {
+                SetAutorunValue(false);
+            }
+            if (serviceStart)
+            {
+                try
+                {
+                    StartService("Служба интеграции");
+                }
+                catch
+                {
+                    MessageBox.Show("Возникла ошибка при запуске службы. Проверьте параметры запуска.");
+                }
+            }
             openFile.FileName = "../../../DataService/bin/Debug/DataService.exe";
             var serviceExists = ServiceController.GetServices().Any(s => s.DisplayName == "Служба интеграции");
             ServiceController service = ServiceController.GetServices().FirstOrDefault(s => s.DisplayName == "Служба интеграции");
@@ -119,7 +177,26 @@ namespace DataServiceApp
             
         }
 
-        
+        public bool SetAutorunValue(bool autorun)
+        {
+            string ExePath = System.Windows.Forms.Application.ExecutablePath;
+            RegistryKey reg;
+            reg = Registry.CurrentUser.CreateSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Run\\");
+            try
+            {
+                if (autorun)
+                    reg.SetValue("DataServiceApp", ExePath);
+                else
+                    reg.DeleteValue("DataServiceApp");
+
+                reg.Close();
+            }
+            catch
+            {
+                return false;
+            }
+            return true;
+        }
 
         //Выбор папки с температурами по индексу оборудования
         public string selectFolder(int index)
@@ -447,6 +524,7 @@ namespace DataServiceApp
 
         private void Icon_Click(object sender, EventArgs e)
         {
+            if(trayMinimize)
             if (this.WindowState == WindowState.Minimized)
             {
                 this.WindowState = WindowState.Normal;
@@ -457,27 +535,39 @@ namespace DataServiceApp
 
         private void Window_Deactivated(object sender, EventArgs e)
         {
-            if (this.WindowState == WindowState.Minimized)
+            if(trayMinimize)
             {
-                icon.Visible = true;
+                if (this.WindowState == WindowState.Minimized)
+                {
+                    icon.Visible = true;
+                }
             }
+            
         }
 
         private void Exit_Click(object sender, EventArgs e)
         {
-            ServiceController service = new ServiceController("Служба интеграции");
-            if (service.Status != ServiceControllerStatus.Running)
+            try
             {
-                Environment.Exit(1);
-            }
-            else
-            {
-                if (MessageBox.Show("При выходе из программы, служба автоматически прекратит свою работу! Вы уверены, что хотите выйти?", "Предупреждение", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+                ServiceController service = new ServiceController("Служба интеграции");
+                if (service.Status != ServiceControllerStatus.Running)
                 {
-                    StopService("Служба интеграции");
                     Environment.Exit(1);
                 }
+                else
+                {
+                    if (MessageBox.Show("При выходе из программы, служба автоматически прекратит свою работу! Вы уверены, что хотите выйти?", "Предупреждение", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+                    {
+                        StopService("Служба интеграции");
+                        Environment.Exit(1);
+                    }
+                }
             }
+            catch(Exception ex)
+            {
+
+            }
+            
             
         }
 
@@ -563,8 +653,68 @@ namespace DataServiceApp
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            e.Cancel = true;
-            this.WindowState = WindowState.Minimized;
+            if(trayMinimize)
+            {
+                e.Cancel = true;
+                this.WindowState = WindowState.Minimized;
+            }
+            else
+            {
+                ServiceController service = new ServiceController("Служба интеграции");
+                if (service.Status != ServiceControllerStatus.Running)
+                {
+                    Environment.Exit(1);
+                }
+                else
+                {
+                    e.Cancel = true;
+                    if (MessageBox.Show("При выходе из программы, служба автоматически прекратит свою работу! Вы уверены, что хотите выйти?", "Предупреждение", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+                    {
+                        StopService("Служба интеграции");
+                        Environment.Exit(1);
+                    }
+                }
+            }
+        }
+
+        private void cbAppWindows_Checked(object sender, RoutedEventArgs e)
+        {
+            windowsStart = true;
+            SetAutorunValue(true);
+            File.WriteAllText("windowsStart", windowsStart.ToString());
+        }
+
+        private void cbAppWindows_Unchecked(object sender, RoutedEventArgs e)
+        {
+            windowsStart = false;
+            SetAutorunValue(false);
+            File.WriteAllText("windowsStart", windowsStart.ToString());
+        }
+
+        private void cbServiceStart_Checked(object sender, RoutedEventArgs e)
+        {
+            serviceStart = true;
+            File.WriteAllText("serviceStart", serviceStart.ToString());
+        }
+
+        private void cbServiceStart_Unchecked(object sender, RoutedEventArgs e)
+        {
+            serviceStart = false;
+            File.WriteAllText("serviceStart", serviceStart.ToString());
+        }
+
+        private void cbTrayMinimize_Checked(object sender, RoutedEventArgs e)
+        {
+            trayMinimize = true;
+            icon.Visible = true;
+            File.WriteAllText("trayMinimize", trayMinimize.ToString());
+        }
+
+        private void cbTrayMinimize_Unchecked(object sender, RoutedEventArgs e)
+        {
+            trayMinimize = false;
+            icon.Visible = false;
+            File.WriteAllText("trayMinimize", trayMinimize.ToString());
         }
     }
 }
